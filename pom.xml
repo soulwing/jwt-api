@@ -46,6 +46,7 @@
       <groupId>org.glassfish</groupId>
       <artifactId>javax.json</artifactId>
       <version>1.0.4</version> <!-- Implements JSR-353 (Java EE 7) -->
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.bitbucket.b_c</groupId>
@@ -64,25 +65,27 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-core</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-library</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.jmock</groupId>
       <artifactId>jmock-junit4</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
   <properties>
     <java.version>1.8</java.version>
-    <version.org.bouncycastle>1.56</version.org.bouncycastle>
   </properties>
-
 
 </project>
