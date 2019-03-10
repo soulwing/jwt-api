@@ -18,6 +18,8 @@
  */
 package org.soulwing.jwt.api;
 
+import java.util.Arrays;
+
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
 
@@ -58,6 +60,15 @@ public interface JWS {
     public String toToken() {
       return name();
     }
+
+    public static JWS.Algorithm of(String token) {
+      return Arrays.stream(values())
+          .filter(v -> v.toToken().equals(token))
+          .findFirst()
+          .orElseThrow(() -> new IllegalArgumentException(
+              "unrecognized algorithm name: `" + token + "`"));
+    }
+
   }
 
   /**

@@ -1,5 +1,5 @@
 /*
- * File created on Mar 8, 2019
+ * File created on Mar 10, 2019
  *
  * Copyright (c) 2019 Carl Harris, Jr
  * and others as noted
@@ -17,6 +17,8 @@
  * limitations under the License.
  */
 package org.soulwing.jwt.api;
+
+import java.util.Arrays;
 
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
@@ -75,6 +77,14 @@ public interface JWE {
       return token;
     }
 
+    public static KeyManagementAlgorithm of(String token) {
+      return Arrays.stream(values())
+          .filter(v -> v.toToken().equals(token))
+          .findFirst()
+          .orElseThrow(() -> new IllegalArgumentException(
+              "unrecognized algorithm name: `" + token + "`"));
+    }
+
   }
 
   /**
@@ -98,6 +108,14 @@ public interface JWE {
       return token;
     }
 
+    public static ContentEncryptionAlgorithm of(String token) {
+      return Arrays.stream(values())
+          .filter(v -> v.toToken().equals(token))
+          .findFirst()
+          .orElseThrow(() -> new IllegalArgumentException(
+              "unrecognized algorithm name: `" + token + "`"));
+    }
+
   }
 
   /**
@@ -114,6 +132,14 @@ public interface JWE {
 
     public String toToken() {
       return token;
+    }
+
+    public static CompressionAlgorithm of(String token) {
+      return Arrays.stream(values())
+          .filter(v -> v.toToken().equals(token))
+          .findFirst()
+          .orElseThrow(() -> new IllegalArgumentException(
+              "unrecognized algorithm name: `" + token + "`"));
     }
 
   }
