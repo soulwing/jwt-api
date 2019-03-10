@@ -24,7 +24,7 @@ import java.util.ServiceLoader;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.soulwing.jwt.api.exceptions.JWTException;
+import org.soulwing.jwt.api.exceptions.JWTProviderNotFoundException;
 
 /**
  * A locator for a {@link JWTProvider}.
@@ -42,9 +42,9 @@ public class JWTProviderLocator {
    * Gets the default JWT provider using the current thread's context class
    * loader (lazy loading as necessary).
    * @return provider
-   * @throws JWTException if no provider can be located
+   * @throws JWTProviderNotFoundException if no provider can be located
    */
-  public static JWTProvider getProvider() throws JWTException {
+  public static JWTProvider getProvider() throws JWTProviderNotFoundException {
     if (provider == null) {
       lock.lock();
       try {
@@ -66,14 +66,14 @@ public class JWTProviderLocator {
    * Gets a JWT provider.
    * @param classLoader to use for service loading
    * @return provider
-   * @throws JWTException if no provider can be located
+   * @throws JWTProviderNotFoundException if no provider can be located
    */
   public static JWTProvider newProvider(ClassLoader classLoader)
-      throws JWTException {
+      throws JWTProviderNotFoundException {
     final Iterator<JWTProvider> i = ServiceLoader.load(
         JWTProvider.class, classLoader).iterator();
     if (!i.hasNext()) {
-      throw new JWTException("cannot locate a provider");
+      throw new JWTProviderNotFoundException();
     }
     return i.next();
   }
