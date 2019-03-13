@@ -21,6 +21,8 @@ package org.soulwing.jwt.api;
 import java.security.Key;
 import java.util.Optional;
 
+import org.soulwing.jwt.api.exceptions.KeyProviderException;
+
 /**
  * A provider for keys used in signature and encipherment operations.
  *
@@ -65,16 +67,18 @@ public interface KeyProvider {
 
   /**
    * Gets the current key to use for signature or encryption operations.
-    * @return tuple containing the key and optional corresponding identifier
+   * @return tuple containing the key and optional corresponding identifier
+   * @throws KeyProviderException if an error occurs in obtaining the key
    */
-  Tuple currentKey();
+  Tuple currentKey() throws KeyProviderException;
 
   /**
    * Retrieves a key to use for signature validation or decryption operations.
    * @param id ID of the key to retrieve; if {@code null}, the return value is
    *    effectively the same as {@code Optional.of(currentKey().key()}.
    * @return key if found, otherwise empty
+   * @throws KeyProviderException if an error occurs in obtaining the key
    */
-  Optional<Key> retrieveKey(String id);
+  Optional<Key> retrieveKey(String id) throws KeyProviderException;
 
 }

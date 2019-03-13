@@ -26,6 +26,7 @@ import org.soulwing.jwt.api.KeyProvider;
 import org.soulwing.jwt.api.exceptions.DecryptionKeyNotFoundException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
+import org.soulwing.jwt.api.exceptions.KeyProviderException;
 
 /**
  * A {@link JWE} operator implemented using Jose4j.
@@ -129,7 +130,7 @@ class Jose4jEncryptionOperator implements JWE {
 
       return jwe.getCompactSerialization();
     }
-    catch (JoseException ex) {
+    catch (KeyProviderException | JoseException ex) {
       throw new JWTEncryptionException(ex);
     }
   }
@@ -157,7 +158,7 @@ class Jose4jEncryptionOperator implements JWE {
 
       return jwe.getPayload();
     }
-    catch (JoseException ex) {
+    catch (KeyProviderException | JoseException ex) {
       throw new JWTEncryptionException(ex);
     }
   }

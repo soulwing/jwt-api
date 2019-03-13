@@ -26,6 +26,7 @@ import org.soulwing.jwt.api.KeyProvider;
 import org.soulwing.jwt.api.exceptions.InvalidSignatureException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
+import org.soulwing.jwt.api.exceptions.KeyProviderException;
 import org.soulwing.jwt.api.exceptions.SignatureKeyNotFoundException;
 
 /**
@@ -99,7 +100,7 @@ class Jose4jSignatureOperator implements JWS {
 
       return jws.getCompactSerialization();
     }
-    catch (JoseException ex) {
+    catch (KeyProviderException | JoseException ex) {
       throw new JWTSignatureException(ex.toString(), ex);
     }
   }
@@ -123,7 +124,7 @@ class Jose4jSignatureOperator implements JWS {
 
       return jws.getPayload();
     }
-    catch (JoseException ex) {
+    catch (KeyProviderException | JoseException ex) {
       throw new JWTSignatureException(ex.toString(), ex);
     }
   }
