@@ -19,6 +19,7 @@
 package org.soulwing.jwt.api.jose4j;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
@@ -293,6 +294,12 @@ public class Jose4jClaimsTest {
     assertThat(actual.isPresent(), is(true));
     assertThat(actual.get(), is(instanceOf(String[].class)));
     assertThat(Arrays.asList(actual.get()).contains(STRING_VALUE), is(true));
+  }
+
+  @Test
+  public void testNames() throws Exception {
+    delegate.setClaim(CLAIM_NAME, STRING_VALUE);
+    assertThat(claims.names(), contains(CLAIM_NAME));
   }
 
   @Test

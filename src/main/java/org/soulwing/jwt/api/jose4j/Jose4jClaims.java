@@ -21,6 +21,7 @@ package org.soulwing.jwt.api.jose4j;
 import java.lang.reflect.Array;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +52,11 @@ class Jose4jClaims implements Claims {
   @Override
   public String getIssuer() {
     return get(ISS, String.class);
+  }
+
+  @Override
+  public Set<String> names() {
+    return new HashSet<>(delegate.getClaimNames());
   }
 
   @Override

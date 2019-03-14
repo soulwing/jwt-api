@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * A map-based claims implementation suitable for use in unit tests.
@@ -46,6 +47,11 @@ public class MockClaims implements Claims {
       values.addAll(Arrays.asList(moreValues));
       map.put(name, values);
     }
+  }
+
+  @Override
+  public Set<String> names() {
+    return map.keySet();
   }
 
   @Override

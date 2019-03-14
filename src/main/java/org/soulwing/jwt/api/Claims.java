@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * An immutable value type representing a map of named values for a JWT payload.
@@ -140,6 +141,12 @@ public interface Claims {
     Claims build();
 
   }
+
+  /**
+   * Gets the set of names for claims in this collection.
+   * @return set of claim names
+   */
+  Set<String> names();
 
   /**
    * Gets the value of the {@value #JTI} claim.
