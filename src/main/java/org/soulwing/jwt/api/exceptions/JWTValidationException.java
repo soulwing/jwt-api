@@ -25,7 +25,7 @@ package org.soulwing.jwt.api.exceptions;
  * @author Carl Harris
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
-public class JWTValidationException extends Exception {
+public class JWTValidationException extends JWTException {
 
   public JWTValidationException(String message) {
     super(message);
