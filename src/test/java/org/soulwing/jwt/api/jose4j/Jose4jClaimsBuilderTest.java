@@ -19,8 +19,11 @@
 package org.soulwing.jwt.api.jose4j;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -128,7 +131,7 @@ public class Jose4jClaimsBuilderTest {
   @Test
   public void testBuildWithArrayClaim() throws Exception {
     final String[] values = {STRING_VALUE};
-    assertThat(builder.set(CLAIM_NAME, (Object[]) values).build()
+    assertThat(builder.set(CLAIM_NAME, values).build()
         .claim(CLAIM_NAME, String[].class).orElse(null), is(equalTo(values)));
   }
 
@@ -144,6 +147,25 @@ public class Jose4jClaimsBuilderTest {
     final Set values = Collections.singleton(STRING_VALUE);
     assertThat(builder.set(CLAIM_NAME, values).build()
         .claim(CLAIM_NAME, Set.class).orElse(null), is(equalTo(values)));
+  }
+
+  @Test
+  public void testBuildWithSingleObjectValue() throws Exception {
+    final Object value = new Object();
+    assertThat(builder.set(CLAIM_NAME, value).build()
+        .claim(CLAIM_NAME, Object.class).orElse(null), is(sameInstance(value)));
+  }
+
+  @Test
+  public void testBuildWithMultipleObjectValue() throws Exception {
+    final Object value = new Object();
+    final Object otherValue = new Object();
+    final Claims claims = builder.set(CLAIM_NAME, value, otherValue).build();
+    assertThat(claims.claim(CLAIM_NAME, Object.class).orElse(null),
+        is(instanceOf(List.class)));
+    final List<?> actual = (List<?>)
+        claims.claim(CLAIM_NAME, List.class).orElse(null);
+    assertThat(actual, contains(value, otherValue));
   }
 
 }

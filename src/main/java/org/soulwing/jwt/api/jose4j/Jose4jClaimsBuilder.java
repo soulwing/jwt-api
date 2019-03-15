@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -102,9 +103,22 @@ class Jose4jClaimsBuilder implements Claims.Builder {
   }
 
   @Override
-  public Claims.Builder set(String name, Object... values) {
-    delegate.setClaim(name, Arrays.asList(values));
+  public Claims.Builder set(String name, Object value, Object... moreValues) {
+    if (moreValues.length == 0) {
+      delegate.setClaim(name, value);
+    }
+    else {
+      final List<Object> values = new ArrayList<>();
+      values.add(value);
+      values.addAll(Arrays.asList(moreValues));
+      delegate.setClaim(name, values);
+    }
     return this;
+  }
+
+  @Override
+  public Claims.Builder set(String name, Object[] values) {
+    return set(name, Arrays.asList(values));
   }
 
   @Override

@@ -111,14 +111,26 @@ public interface Claims {
     /**
      * Specifies a value for an arbitrary claim.
      * @param name name of the claim
-     * @param values value(s) for the claim; if empty array, any existing value
-     *    for the claim will be removed and the claim will not be included in
-     *    the resulting representation
+     * @param value first value for the claim
+     * @param moreValues more values for the claim
      * @return this builder
      * @throws IllegalArgumentException if the provider does not support
      *    any one of the data types composed in the array
      */
-    Builder set(String name, Object... values);
+    Builder set(String name, Object value, Object... moreValues);
+
+    /**
+     * Specifies a value for an arbitrary claim.
+     * @param name name of the claim
+     * @param values value(s) for the claim; if empty array, any existing
+     *    value for the claim will be removed and the claim will not be included
+     *    in the resulting representation
+     * @return this builder
+     * @throws IllegalArgumentException if the provider does not support the
+     *    given collection type or any one of the types of values composed in
+     *    the collection
+     */
+    Builder set(String name, Object[] values);
 
     /**
      * Specifies a value for an arbitrary claim.
