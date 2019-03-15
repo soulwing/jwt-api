@@ -26,8 +26,16 @@ package org.soulwing.jwt.api.exceptions;
  */
 public class KeyProviderException extends JWTException {
 
+  public KeyProviderException(String message) {
+    super(message);
+  }
+
   public KeyProviderException(Throwable cause) {
     super(cause.toString(), cause);
+  }
+
+  public KeyProviderException(String message, Throwable cause) {
+    super(message, cause);
   }
 
 }
