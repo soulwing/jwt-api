@@ -28,7 +28,8 @@ import org.soulwing.jwt.api.JWS;
 public class InvalidSignatureException extends JWTSignatureException {
 
   public InvalidSignatureException(JWS.Algorithm algorithm, String keyId) {
-    super(algorithm.toToken() + " signature invalid key using '" + keyId + "'");
+    super(algorithm.toToken() + " signature invalid"
+        + (keyId != null ? "using '" + keyId + "'" : ""));
   }
 
 }
