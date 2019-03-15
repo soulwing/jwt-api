@@ -20,6 +20,7 @@ package org.soulwing.jwt.api.jose4j;
 
 import java.lang.reflect.Array;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -151,7 +152,14 @@ class Jose4jClaims implements Claims {
         if (number == null) return Optional.empty();
         return (Optional<T>) Optional.of(number.doubleValue());
       }
-      return Optional.ofNullable(delegate.getClaimValue(name, type));
+      final T claimValue = delegate.getClaimValue(name, type);
+      if (type.equals(Object.class)
+          && claimValue instanceof List
+          && ((List) claimValue).size() == 1) {
+        return Optional.of((T) ((List) claimValue).get(0));
+      }
+
+      return Optional.ofNullable(claimValue);
     }
     catch (MalformedClaimException ex) {
       throw new ClassCastException("claim value is of type "
