@@ -43,19 +43,29 @@ public interface JWS {
    * An enumeration of standard algorithms for signatures
    */
   enum Algorithm {
-    none,
-    HS256,
-    HS384,
-    HS512,
-    RS256,
-    RS384,
-    RS512,
-    ES256,
-    ES384,
-    ES512,
-    PS256,
-    PS384,
-    PS512;
+    none(0),
+    HS256(256),
+    HS384(384),
+    HS512(512),
+    RS256(2048),
+    RS384(2048),
+    RS512(2048),
+    ES256(256),
+    ES384(384),
+    ES512(512),
+    PS256(2048),
+    PS384(2048),
+    PS512(2048);
+
+    private final int keyBitLength;
+
+    Algorithm(int keyBitLength) {
+      this.keyBitLength = keyBitLength;
+    }
+
+    public int getKeyBitLength() {
+      return keyBitLength;
+    }
 
     public String toToken() {
       return name();

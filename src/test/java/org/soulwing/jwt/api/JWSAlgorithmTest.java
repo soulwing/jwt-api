@@ -19,6 +19,7 @@
 package org.soulwing.jwt.api;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
 
@@ -37,6 +38,12 @@ public class JWSAlgorithmTest {
       assertThat(JWS.Algorithm.of(algorithm.toToken()),
           is(sameInstance(algorithm)));
     }
+  }
+
+  @Test
+  public void testKeyBitLength() throws Exception {
+    assertThat(JWS.Algorithm.HS256.getKeyBitLength(), is(equalTo(256)));
+    assertThat(JWS.Algorithm.PS512.getKeyBitLength(), is(equalTo(2048)));
   }
 
   @Test(expected = IllegalArgumentException.class)
