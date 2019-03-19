@@ -1,5 +1,5 @@
 /*
- * File created on Mar 8, 2019
+ * File created on Mar 17, 2019
  *
  * Copyright (c) 2019 Carl Harris, Jr
  * and others as noted
@@ -16,19 +16,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.soulwing.jwt.api.exceptions;
+package org.soulwing.jwt.api.jose4j;
 
-import org.soulwing.jwt.api.JWS;
+import java.security.Key;
+
+import org.jose4j.jwk.JsonWebKey;
+import org.soulwing.jwt.api.JWK;
 
 /**
- * An exception thrown when a signature validation fails.
+ * A {@link JWK} implemented using Jose4j.
  *
  * @author Carl Harris
  */
-public class InvalidSignatureException extends JWTSignatureException {
+class Jose4jWebKey implements JWK {
 
-  public InvalidSignatureException(JWS.Algorithm algorithm) {
-    super(algorithm.toToken() + " signature invalid");
+  private final JsonWebKey delegate;
+
+  Jose4jWebKey(JsonWebKey delegate) {
+    this.delegate = delegate;
+  }
+
+  @Override
+  public Key getKey() {
+    return delegate.getKey();
   }
 
 }

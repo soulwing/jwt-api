@@ -23,10 +23,13 @@ import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.lang.JoseException;
 import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.KeyProvider;
+import org.soulwing.jwt.api.PublicKeyLocator;
+import org.soulwing.jwt.api.exceptions.CertificateException;
 import org.soulwing.jwt.api.exceptions.InvalidSignatureException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
 import org.soulwing.jwt.api.exceptions.KeyProviderException;
+import org.soulwing.jwt.api.exceptions.PublicKeyNotFoundException;
 import org.soulwing.jwt.api.exceptions.SignatureKeyNotFoundException;
 
 /**
@@ -38,6 +41,7 @@ class Jose4jSignatureOperator implements JWS {
 
   private Algorithm algorithm;
   private KeyProvider keyProvider;
+  private PublicKeyLocator publicKeyLocator;
 
   private Jose4jSignatureOperator() {
   }
@@ -52,6 +56,12 @@ class Jose4jSignatureOperator implements JWS {
     @Override
     public JWS.Builder keyProvider(KeyProvider keyProvider) {
       operation.keyProvider = keyProvider;
+      return this;
+    }
+
+    @Override
+    public JWS.Builder publicKeyLocator(PublicKeyLocator publicKeyLocator) {
+      operation.publicKeyLocator = publicKeyLocator;
       return this;
     }
 
@@ -114,15 +124,29 @@ class Jose4jSignatureOperator implements JWS {
           new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.WHITELIST,
               algorithm.toToken()));
 
-      final String keyId = jws.getKeyIdHeaderValue();
-      jws.setKey(keyProvider.retrieveKey(keyId)
-          .orElseThrow(() -> new SignatureKeyNotFoundException(keyId)));
+      if (algorithm.isAsymmetric() && publicKeyLocator != null) {
+        jws.setKey(publicKeyLocator.locate(new Jose4jPublicKeyCriteria(jws)));
+      }
+      else {
+        jws.setKey(keyProvider.retrieveKey(jws.getKeyIdHeaderValue())
+            .orElseThrow(SignatureKeyNotFoundException::new));
+      }
 
       if (!jws.verifySignature()) {
-        throw new InvalidSignatureException(algorithm, keyId);
+        throw new InvalidSignatureException(algorithm);
       }
 
       return jws.getPayload();
+    }
+    catch (CertificateException ex) {
+      if (ex.getCause() != null) {
+        throw new JWTSignatureException(ex.getCause().getMessage(),
+            ex.getCause());
+      }
+      throw new JWTSignatureException(ex.getMessage(), ex);
+    }
+    catch (PublicKeyNotFoundException ex) {
+      throw new SignatureKeyNotFoundException();
     }
     catch (KeyProviderException | JoseException ex) {
       throw new JWTSignatureException(ex.toString(), ex);

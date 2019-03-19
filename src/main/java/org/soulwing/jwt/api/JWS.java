@@ -43,28 +43,34 @@ public interface JWS {
    * An enumeration of standard algorithms for signatures
    */
   enum Algorithm {
-    none(0),
-    HS256(256),
-    HS384(384),
-    HS512(512),
-    RS256(2048),
-    RS384(2048),
-    RS512(2048),
-    ES256(256),
-    ES384(384),
-    ES512(512),
-    PS256(2048),
-    PS384(2048),
-    PS512(2048);
+    none(0, false),
+    HS256(256, false),
+    HS384(384, false),
+    HS512(512, false),
+    RS256(2048, true),
+    RS384(2048, true),
+    RS512(2048, true),
+    ES256(256, true),
+    ES384(384, true),
+    ES512(512, true),
+    PS256(2048, true),
+    PS384(2048, true),
+    PS512(2048, true);
 
     private final int keyBitLength;
+    private final boolean asymmetric;
 
-    Algorithm(int keyBitLength) {
+    Algorithm(int keyBitLength, boolean asymmetric) {
       this.keyBitLength = keyBitLength;
+      this.asymmetric = asymmetric;
     }
 
     public int getKeyBitLength() {
       return keyBitLength;
+    }
+
+    public boolean isAsymmetric() {
+      return asymmetric;
     }
 
     public String toToken() {
@@ -93,6 +99,13 @@ public interface JWS {
      * @return this builder
      */
     Builder keyProvider(KeyProvider keyProvider);
+
+    /**
+     * Sets the public key locator to use for signature validation.
+     * @param publicKeyLocator public key locator
+     * @return this builder
+     */
+    Builder publicKeyLocator(PublicKeyLocator publicKeyLocator);
 
     /**
      * Sets the algorithm to use for signature generation of validation.

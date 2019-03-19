@@ -54,6 +54,17 @@
       <version>0.6.5</version>
     </dependency>
     <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcprov-jdk15on</artifactId>
+      <version>${version.org.bouncycastle}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bcpkix-jdk15on</artifactId>
+      <version>${version.org.bouncycastle}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
@@ -86,6 +97,7 @@
 
   <properties>
     <java.version>1.8</java.version>
+    <version.org.bouncycastle>1.61</version.org.bouncycastle>
   </properties>
 
 </project>

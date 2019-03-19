@@ -19,8 +19,15 @@
 package org.soulwing.jwt.api;
 
 import java.security.Key;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.Provider;
 import java.security.SecureRandom;
+import java.security.Security;
 import javax.crypto.spec.SecretKeySpec;
+
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 /**
  * Utility methods for cryptographic keys.
@@ -29,6 +36,20 @@ import javax.crypto.spec.SecretKeySpec;
  */
 public class KeyUtil {
 
+  private static final SecureRandom secureRandom = new SecureRandom();
+
+  private static final KeyPairGenerator rsaKeyGenerator;
+
+  static {
+    try {
+      rsaKeyGenerator = KeyPairGenerator.getInstance("RSA");
+      rsaKeyGenerator.initialize(2048);
+    }
+    catch (NoSuchAlgorithmException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
   /**
    * Generates a new AES key of the specified bit length.
    * @param bitLength bit length (must be a multiple of 8)
@@ -36,8 +57,16 @@ public class KeyUtil {
    */
   public static Key newAesKey(int bitLength) {
     byte[] secret = new byte[bitLength / Byte.SIZE];
-    new SecureRandom().nextBytes(secret);
+    secureRandom.nextBytes(secret);
     return new SecretKeySpec(secret, "AES");
+  }
+
+  /**
+   * Generates a new RSA key pair
+   * @return key pair
+   */
+  public static KeyPair newRsaKeyPair() {
+    return rsaKeyGenerator.generateKeyPair();
   }
 
 }

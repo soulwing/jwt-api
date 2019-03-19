@@ -26,8 +26,8 @@ package org.soulwing.jwt.api.exceptions;
  */
 public class SignatureKeyNotFoundException extends JWTSignatureException {
 
-  public SignatureKeyNotFoundException(String keyId) {
-    super("key '" + keyId + "' required for signature operation was not found");
+  public SignatureKeyNotFoundException() {
+    super("key required for signature verification was not found");
   }
 
 }

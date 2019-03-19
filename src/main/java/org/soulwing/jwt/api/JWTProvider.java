@@ -73,5 +73,4 @@ public interface JWTProvider {
    */
   JWTValidator.Builder validator();
 
-
 }

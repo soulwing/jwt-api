@@ -1,5 +1,5 @@
 /*
- * File created on Mar 8, 2019
+ * File created on Mar 17, 2019
  *
  * Copyright (c) 2019 Carl Harris, Jr
  * and others as noted
@@ -18,17 +18,20 @@
  */
 package org.soulwing.jwt.api.exceptions;
 
-import org.soulwing.jwt.api.JWS;
-
 /**
- * An exception thrown when a signature validation fails.
+ * An exception thrown when a JCA error occurs in handling a certificate or
+ * certificate chain.
  *
  * @author Carl Harris
  */
-public class InvalidSignatureException extends JWTSignatureException {
+public class CertificateException extends RuntimeException {
 
-  public InvalidSignatureException(JWS.Algorithm algorithm) {
-    super(algorithm.toToken() + " signature invalid");
+  public CertificateException(String message) {
+    super(message);
+  }
+
+  public CertificateException(Throwable cause) {
+    super(cause);
   }
 
 }

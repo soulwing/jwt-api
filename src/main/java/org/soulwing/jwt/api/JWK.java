@@ -1,5 +1,5 @@
 /*
- * File created on Mar 8, 2019
+ * File created on Mar 17, 2019
  *
  * Copyright (c) 2019 Carl Harris, Jr
  * and others as noted
@@ -16,19 +16,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.soulwing.jwt.api.exceptions;
+package org.soulwing.jwt.api;
 
-import org.soulwing.jwt.api.JWS;
+import java.security.Key;
 
 /**
- * An exception thrown when a signature validation fails.
+ * A JSON Web Key.
  *
  * @author Carl Harris
  */
-public class InvalidSignatureException extends JWTSignatureException {
+public interface JWK {
 
-  public InvalidSignatureException(JWS.Algorithm algorithm) {
-    super(algorithm.toToken() + " signature invalid");
-  }
+  /**
+   * Gets the JCA key that corresponds to this web key.
+   *
+   * @return JCA key
+   */
+  Key getKey();
 
 }

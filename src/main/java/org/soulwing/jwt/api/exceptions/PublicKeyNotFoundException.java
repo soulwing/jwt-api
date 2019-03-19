@@ -1,5 +1,5 @@
 /*
- * File created on Mar 8, 2019
+ * File created on Mar 17, 2019
  *
  * Copyright (c) 2019 Carl Harris, Jr
  * and others as noted
@@ -18,17 +18,11 @@
  */
 package org.soulwing.jwt.api.exceptions;
 
-import org.soulwing.jwt.api.JWS;
-
 /**
- * An exception thrown when a signature validation fails.
+ * An exception thrown by a {@link org.soulwing.jwt.api.PublicKeyLocator} to
+ * indicate that no public key matching given criteria could be found.
  *
  * @author Carl Harris
  */
-public class InvalidSignatureException extends JWTSignatureException {
-
-  public InvalidSignatureException(JWS.Algorithm algorithm) {
-    super(algorithm.toToken() + " signature invalid");
-  }
-
+public class PublicKeyNotFoundException extends Exception {
 }

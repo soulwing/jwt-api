@@ -1,5 +1,5 @@
 /*
- * File created on Mar 8, 2019
+ * File created on Mar 18, 2019
  *
  * Copyright (c) 2019 Carl Harris, Jr
  * and others as noted
@@ -16,19 +16,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.soulwing.jwt.api.exceptions;
+package org.soulwing.jwt.api.locator;
 
-import org.soulwing.jwt.api.JWS;
+import java.io.IOException;
+import java.net.URI;
+import java.security.cert.X509Certificate;
+import java.util.List;
 
 /**
- * An exception thrown when a signature validation fails.
+ * A service that loads a certificate chain from a URL.
  *
  * @author Carl Harris
  */
-public class InvalidSignatureException extends JWTSignatureException {
+public interface CertificateChainLoader {
 
-  public InvalidSignatureException(JWS.Algorithm algorithm) {
-    super(algorithm.toToken() + " signature invalid");
-  }
+  List<X509Certificate> load(URI url) throws IOException;
 
 }

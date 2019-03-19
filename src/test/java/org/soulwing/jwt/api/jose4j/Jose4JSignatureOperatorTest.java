@@ -21,10 +21,12 @@ package org.soulwing.jwt.api.jose4j;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 
 import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.KeyPair;
 import java.util.Base64;
 import java.util.Optional;
 import javax.json.Json;
@@ -34,16 +36,20 @@ import org.jmock.Expectations;
 import org.jmock.auto.Mock;
 import org.jmock.integration.junit4.JUnitRuleMockery;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.KeyProvider;
 import org.soulwing.jwt.api.KeyUtil;
+import org.soulwing.jwt.api.PublicKeyLocator;
 import org.soulwing.jwt.api.SingletonKeyProvider;
+import org.soulwing.jwt.api.exceptions.CertificateException;
 import org.soulwing.jwt.api.exceptions.InvalidSignatureException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
+import org.soulwing.jwt.api.exceptions.PublicKeyNotFoundException;
 import org.soulwing.jwt.api.exceptions.SignatureKeyNotFoundException;
 
 /**
@@ -57,6 +63,8 @@ public class Jose4JSignatureOperatorTest {
   private static final JWS.Algorithm ALGORITHM  = JWS.Algorithm.HS256;
   private static final String PAYLOAD = "This is just a plain old string";
 
+  private static KeyPair keyPair;
+
   @Rule
   public final JUnitRuleMockery context = new JUnitRuleMockery();
 
@@ -66,7 +74,15 @@ public class Jose4JSignatureOperatorTest {
   @Mock
   private KeyProvider keyProvider;
 
+  @Mock
+  private PublicKeyLocator publicKeyLocator;
+
   private Key key, otherKey;
+
+  @BeforeClass
+  public static void setUpBeforeClass() {
+    keyPair = KeyUtil.newRsaKeyPair();
+  }
 
   @Before
   public void setUp() throws Exception {
@@ -198,5 +214,101 @@ public class Jose4JSignatureOperatorTest {
 
     operator.verify(operator.sign(PAYLOAD));
   }
+
+  @Test
+  public void testAsymmetricSignAndVerify() throws Exception {
+    final JWS operator =
+        Jose4jSignatureOperator.builder()
+            .algorithm(JWS.Algorithm.RS256)
+            .keyProvider(SingletonKeyProvider.with(KEY_ID, keyPair.getPrivate()))
+            .publicKeyLocator(publicKeyLocator)
+            .build();
+
+    final String encoded = operator.sign(PAYLOAD);
+
+    context.checking(new Expectations() {
+      {
+        oneOf(publicKeyLocator).locate(with(any(PublicKeyLocator.Criteria.class)));
+        will(returnValue(keyPair.getPublic()));
+      }
+    });
+
+    assertThat(operator.verify(encoded), is(equalTo(PAYLOAD)));
+  }
+
+  @Test
+  public void testAsymmetricSignAndVerifyWhenPublicKeyNotFound() throws Exception {
+    final JWS operator =
+        Jose4jSignatureOperator.builder()
+            .algorithm(JWS.Algorithm.RS256)
+            .keyProvider(SingletonKeyProvider.with(KEY_ID, keyPair.getPrivate()))
+            .publicKeyLocator(publicKeyLocator)
+            .build();
+
+    final String encoded = operator.sign(PAYLOAD);
+
+    context.checking(new Expectations() {
+      {
+        oneOf(publicKeyLocator).locate(with(any(PublicKeyLocator.Criteria.class)));
+        will(throwException(new PublicKeyNotFoundException()));
+      }
+    });
+
+    expectedException.expect(SignatureKeyNotFoundException.class);
+    operator.verify(encoded);
+  }
+
+  @Test
+  public void testAsymmetricSignAndVerifyWhenCertificateException()
+      throws Exception {
+    final JWS operator =
+        Jose4jSignatureOperator.builder()
+            .algorithm(JWS.Algorithm.RS256)
+            .keyProvider(SingletonKeyProvider.with(KEY_ID, keyPair.getPrivate()))
+            .publicKeyLocator(publicKeyLocator)
+            .build();
+
+    final String encoded = operator.sign(PAYLOAD);
+
+    final CertificateException cause = new CertificateException("error message");
+    context.checking(new Expectations() {
+      {
+        oneOf(publicKeyLocator).locate(with(any(PublicKeyLocator.Criteria.class)));
+        will(throwException(cause));
+      }
+    });
+
+    expectedException.expect(JWTSignatureException.class);
+    expectedException.expectCause(is(sameInstance(cause)));
+    operator.verify(encoded);
+
+  }
+
+  @Test
+  public void testAsymmetricSignAndVerifyWhenCertificateExceptionWithCause()
+      throws Exception {
+    final JWS operator =
+        Jose4jSignatureOperator.builder()
+            .algorithm(JWS.Algorithm.RS256)
+            .keyProvider(SingletonKeyProvider.with(KEY_ID, keyPair.getPrivate()))
+            .publicKeyLocator(publicKeyLocator)
+            .build();
+
+    final String encoded = operator.sign(PAYLOAD);
+
+    final Exception cause = new Exception();
+    context.checking(new Expectations() {
+      {
+        oneOf(publicKeyLocator).locate(with(any(PublicKeyLocator.Criteria.class)));
+        will(throwException(new CertificateException(cause)));
+      }
+    });
+
+    expectedException.expect(JWTSignatureException.class);
+    expectedException.expectCause(is(sameInstance(cause)));
+    operator.verify(encoded);
+
+  }
+
 
 }
