@@ -76,9 +76,9 @@ class Jose4jSignatureOperator implements JWS {
       if (operation.algorithm == null) {
         throw new JWTConfigurationException("algorithm is required");
       }
-      if (operation.keyProvider == null
+      if (operation.keyProvider == null && operation.publicKeyLocator == null
           && operation.algorithm != Algorithm.none) {
-        throw new JWTConfigurationException("keyProvider is required");
+        throw new JWTConfigurationException("keyProvider or publicKeyLocator is required");
       }
       return operation;
     }
