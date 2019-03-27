@@ -39,6 +39,7 @@ import org.soulwing.jwt.api.exceptions.PublicKeyNotFoundException;
  *
  * @author Carl Harris
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public class JcaPublicKeyLocator implements PublicKeyLocator {
 
   private final Map<StrategyType, Strategy> strategies = new LinkedHashMap<>();
@@ -57,6 +58,8 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   public static class Builder implements PublicKeyLocator.Builder {
 
     private JcaPublicKeyLocator locator = new JcaPublicKeyLocator();
+
+    private Builder() {}
 
     public PublicKeyLocator.Builder chainLoader(
         CertificateChainLoader chainLoader) {

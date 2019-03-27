@@ -40,6 +40,7 @@ import org.soulwing.jwt.api.exceptions.CertificateException;
  * s
  * @author Carl Harris
  */
+@SuppressWarnings({"unused", "WeakerAccess"})
 public class PemCertificateChainLoader implements CertificateChainLoader {
 
   /**

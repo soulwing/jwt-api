@@ -48,7 +48,8 @@ import org.soulwing.jwt.api.exceptions.CertificateValidationException;
  *
  * @author Carl Harris
  */
-class JcaX509CertificateValidator implements X509CertificateValidator {
+@SuppressWarnings({"unused", "WeakerAccess"})
+public class JcaX509CertificateValidator implements X509CertificateValidator {
 
   private boolean checkRevocation = true;
   private boolean checkExpiration = true;
@@ -61,17 +62,19 @@ class JcaX509CertificateValidator implements X509CertificateValidator {
   /**
    * A builder that produces a {@link JcaX509CertificateValidator}.
    */
-  static class Builder {
+  public static class Builder {
 
     private final JcaX509CertificateValidator validator =
         new JcaX509CertificateValidator();
+
+    private Builder() {}
 
     /**
      * Specifies the clock to use as the basis for validity checks.
      * @param clock clock
      * @return this builder
      */
-    Builder clock(Clock clock) {
+    public Builder clock(Clock clock) {
       validator.clock = clock;
       return this;
     }
@@ -82,7 +85,7 @@ class JcaX509CertificateValidator implements X509CertificateValidator {
      *    should be checked
      * @return this builder
      */
-    Builder checkRevocation(boolean checkRevocation) {
+    public Builder checkRevocation(boolean checkRevocation) {
       validator.checkRevocation = checkRevocation;
       return this;
     }
@@ -93,7 +96,7 @@ class JcaX509CertificateValidator implements X509CertificateValidator {
      *    should be checked
      * @return this builder
      */
-    Builder checkExpiration(boolean checkExpiration) {
+    public Builder checkExpiration(boolean checkExpiration) {
       validator.checkExpiration = checkExpiration;
       return this;
     }
@@ -105,7 +108,7 @@ class JcaX509CertificateValidator implements X509CertificateValidator {
      *    be applied to the subject certificate only
      * @return this builder
      */
-    Builder checkSubjectOnly(boolean checkSubjectOnly) {
+    public Builder checkSubjectOnly(boolean checkSubjectOnly) {
       validator.checkSubjectOnly = checkSubjectOnly;
       return this;
     }
@@ -115,7 +118,7 @@ class JcaX509CertificateValidator implements X509CertificateValidator {
      * @param trustStore key store containing trusted root certificates
      * @return this builder
      */
-    Builder trustStore(KeyStore trustStore) {
+    public Builder trustStore(KeyStore trustStore) {
       validator.trustStore = trustStore;
       return this;
     }
@@ -125,7 +128,7 @@ class JcaX509CertificateValidator implements X509CertificateValidator {
      * builder.
      * @return validator instance
      */
-    X509CertificateValidator build() {
+    public X509CertificateValidator build() {
       if (validator.clock == null) {
         throw new IllegalArgumentException("clock is required");
       }
