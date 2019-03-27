@@ -37,6 +37,8 @@ import java.util.List;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509ExtensionUtils;
@@ -82,14 +84,27 @@ public class CertUtil {
 
   public static X509Certificate createSelfSignedCert(String subject,
       Duration lifetime, boolean isCA) throws Exception {
-    final KeyPair subjectKeyPair = KeyUtil.newRsaKeyPair();
-    return createSelfSignedCert(subject, subjectKeyPair, lifetime, isCA);
+    return createSelfSignedCert(subject, (String) null, lifetime, isCA);
   }
 
   public static X509Certificate createSelfSignedCert(String subject,
-      KeyPair subjectKeyPair, Duration lifetime, boolean isCA) throws Exception {
-    final X500Name subjectName = new X500Name("CN=" + subject);
-    return selfSign(subjectName, subjectKeyPair, isCA, SIGNATURE_ALGORITHM, lifetime);
+      String altName, Duration lifetime, boolean isCA) throws Exception {
+    final KeyPair subjectKeyPair = KeyUtil.newRsaKeyPair();
+    return createSelfSignedCert(subject, altName, subjectKeyPair, lifetime, isCA);
+  }
+
+  public static X509Certificate createSelfSignedCert(String subject,
+      KeyPair subjectKeyPair, Duration lifetime, boolean isCA)
+      throws Exception {
+    return createSelfSignedCert(subject, null, subjectKeyPair, lifetime, isCA);
+  }
+
+  public static X509Certificate createSelfSignedCert(String subject,
+      String altName, KeyPair subjectKeyPair, Duration lifetime, boolean isCA)
+          throws Exception {
+    return selfSign(new X500Name("CN=" + subject),
+        altName != null ? new GeneralName(GeneralName.dNSName, altName) : null,
+        subjectKeyPair, isCA, SIGNATURE_ALGORITHM, lifetime);
   }
 
   public static List<X509Certificate> createChain(int chainLength,
@@ -101,9 +116,9 @@ public class CertUtil {
     if (chainLength > 0) {
       X500Name issuerName = new X500Name("CN=root");
       KeyPair issuerKeyPair = KeyUtil.newRsaKeyPair();
-      X509Certificate issuerCertificate = selfSign(issuerName,
-          issuerKeyPair, chainLength > 1, SIGNATURE_ALGORITHM,
-          lifetimes[lifetimes.length - 1]);
+      X509Certificate issuerCertificate = selfSign(issuerName, null,
+          issuerKeyPair, chainLength > 1,
+          SIGNATURE_ALGORITHM, lifetimes[lifetimes.length - 1]);
 
       chain.add(issuerCertificate);
 
@@ -126,11 +141,17 @@ public class CertUtil {
   }
 
   public static X509Certificate selfSign(X500Name subject,
-      KeyPair subjectKeyPair, boolean isCA, String algorithm, Duration lifetime)
+      GeneralName altName, KeyPair subjectKeyPair, boolean isCA,
+      String algorithm, Duration lifetime)
       throws OperatorCreationException, CertificateException, IOException {
 
     final JcaX509v3CertificateBuilder certBuilder =
         newBuilder(subject, subject, subjectKeyPair.getPublic(), isCA, lifetime);
+
+    if (altName != null) {
+      certBuilder.addExtension(Extension.subjectAlternativeName, false,
+          new GeneralNames(altName));
+    }
 
     final ContentSigner contentSigner =
         new JcaContentSignerBuilder(algorithm).build(subjectKeyPair.getPrivate());

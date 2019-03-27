@@ -18,13 +18,12 @@
  */
 package org.soulwing.jwt.api.jose4j;
 
-import static org.hamcrest.Matchers.sameInstance;
-
 import java.io.StringWriter;
 import javax.json.Json;
 
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
+import org.hamcrest.Matchers;
 import org.jmock.Expectations;
 import org.jmock.Sequence;
 import org.jmock.auto.Mock;
@@ -137,9 +136,10 @@ public class Jose4jValidatorTest {
         will(returnValue(DECRYPTED));
         oneOf(signatureOperator).verify(DECRYPTED);
         inSequence(sequence);
-        will(returnValue(PAYLOAD));
+        will(returnValue(new Jose4jVerificationResult(PAYLOAD, null)));
         oneOf(assertions).test(with(claimsWithJti(ID)),
-            with(sameInstance(clock)));
+            with(Matchers.<Assertions.Context>hasProperty("clock",
+                Matchers.is(Matchers.sameInstance(clock)))));
         inSequence(sequence);
         will(returnValue(true));
       }
@@ -158,9 +158,10 @@ public class Jose4jValidatorTest {
         will(returnValue(DECRYPTED));
         oneOf(signatureOperator).verify(DECRYPTED);
         inSequence(sequence);
-        will(returnValue(PAYLOAD));
+        will(returnValue(new Jose4jVerificationResult(PAYLOAD, null)));
         oneOf(assertions).test(with(claimsWithJti(ID)),
-            with(sameInstance(clock)));
+            with(Matchers.<Assertions.Context>hasProperty("clock",
+                Matchers.is(Matchers.sameInstance(clock)))));
         inSequence(sequence);
         will(returnValue(false));
       }

@@ -18,6 +18,7 @@
  */
 package org.soulwing.jwt.api;
 
+import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,20 +39,24 @@ import java.util.function.Predicate;
  */
 public final class BiPredicateAssertions implements Assertions {
 
-  private final List<BiPredicate<Claims, Clock>> assertions = new ArrayList<>();
+  private final List<BiPredicate<Claims, Context>> assertions = new ArrayList<>();
 
   private <T> void addClaimAssertion(Function<Claims, Optional<T>> accessor,
       Predicate<T> condition) {
-     assertions.add((claims, clock) ->
+     assertions.add((claims, context) ->
         accessor.apply(claims).map(condition::test).orElse(false));
   }
 
   private <T> void addClaimAssertion(Function<Claims, Optional<T>> accessor,
-      BiPredicate<T, Clock> condition) {
-    assertions.add((claims, clock) ->
+      BiPredicate<T, Context> condition) {
+    assertions.add((claims, context) ->
         accessor.apply(claims)
-            .map(v -> condition.test(v, clock))
+            .map(v -> condition.test(v, context))
             .orElse(false));
+  }
+
+  private void addClaimAssertion(Predicate<Context> condition) {
+    assertions.add((claims, context) -> condition.test(context));
   }
 
   public static final class Builder implements Assertions.Builder {
@@ -107,6 +112,30 @@ public final class BiPredicateAssertions implements Assertions {
     }
 
     @Override
+    public Assertions.Builder requireCertificateSubjectMatchesIssuer() {
+      return requirePublicKeyInfoSatisfies(Claims.ISS,
+          (issuer, publicKeyInfo) -> {
+            final List<X509Certificate> certificates =
+                publicKeyInfo.getCertificates();
+            return certificates.isEmpty()
+                || CertificateNameMatcher.hasSubjectName(issuer,
+                        certificates.get(0));
+          });
+    }
+
+    @Override
+    public Assertions.Builder requireCertificateSubjectMatches(String subjectName) {
+      return requirePublicKeyInfoSatisfies(
+          (publicKeyInfo) -> {
+            final List<X509Certificate> certificates =
+                publicKeyInfo.getCertificates();
+            return certificates.isEmpty()
+                || CertificateNameMatcher.hasSubjectName(subjectName,
+                certificates.get(0));
+          });
+    }
+
+    @Override
     public Assertions.Builder requireAudience(String audience,
         String... otherAudiences) {
       return requireContains(Claims.AUD, audience, (Object[]) otherAudiences);
@@ -158,9 +187,27 @@ public final class BiPredicateAssertions implements Assertions {
     public final Assertions.Builder requireInstantSatisfies(
         String name, BiPredicate<Instant, Clock> condition) {
       assertions.addClaimAssertion(valueAccessor(name),
-          (v, clock) -> v instanceof Number
+          (v, context) -> v instanceof Number
               && condition.test(
-                    Instant.ofEpochSecond(((Number) v).longValue()), clock));
+                    Instant.ofEpochSecond(((Number) v).longValue()),
+                    context.getClock()));
+      return this;
+    }
+
+    @Override
+    public Assertions.Builder requirePublicKeyInfoSatisfies(
+        String name, BiPredicate<String, PublicKeyInfo> condition) {
+      assertions.addClaimAssertion(valueAccessor(name),
+          (v, context) -> v instanceof String
+              && condition.test((String) v, context.getPublicKeyInfo()));
+      return this;
+    }
+
+    @Override
+    public Assertions.Builder requirePublicKeyInfoSatisfies(
+        Predicate<PublicKeyInfo> condition) {
+      assertions.addClaimAssertion(
+          (context) -> condition.test(context.getPublicKeyInfo()));
       return this;
     }
 
@@ -191,9 +238,10 @@ public final class BiPredicateAssertions implements Assertions {
   }
 
   @Override
-  public boolean test(Claims claims, Clock clock) {
+  public boolean test(Claims claims, Context context) {
     return assertions.stream()
-        .allMatch(assertion -> assertion.test(claims, clock));
+        .allMatch(assertion -> assertion.test(claims, context));
   }
+
 
 }

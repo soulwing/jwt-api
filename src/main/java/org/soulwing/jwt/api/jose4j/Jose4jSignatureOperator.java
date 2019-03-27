@@ -23,6 +23,7 @@ import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.lang.JoseException;
 import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.KeyProvider;
+import org.soulwing.jwt.api.PublicKeyInfo;
 import org.soulwing.jwt.api.PublicKeyLocator;
 import org.soulwing.jwt.api.exceptions.CertificateException;
 import org.soulwing.jwt.api.exceptions.InvalidSignatureException;
@@ -111,7 +112,7 @@ class Jose4jSignatureOperator implements JWS {
   }
 
   @Override
-  public String verify(String encoded) throws JWTSignatureException {
+  public Result verify(String encoded) throws JWTSignatureException {
     try {
       final JsonWebSignature jws = new JsonWebSignature();
       jws.setCompactSerialization(encoded);
@@ -119,10 +120,14 @@ class Jose4jSignatureOperator implements JWS {
           new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.WHITELIST,
               algorithm.toToken()));
 
+      final PublicKeyInfo publicKeyInfo;
       if (algorithm.isAsymmetric() && publicKeyLocator != null) {
-        jws.setKey(publicKeyLocator.locate(new Jose4jPublicKeyCriteria(jws)));
+        publicKeyInfo =
+            publicKeyLocator.locate(new Jose4jPublicKeyCriteria(jws));
+        jws.setKey(publicKeyInfo.getPublicKey());
       }
       else {
+        publicKeyInfo = null;
         jws.setKey(keyProvider.retrieveKey(jws.getKeyIdHeaderValue())
             .orElseThrow(SignatureKeyNotFoundException::new));
       }
@@ -131,7 +136,7 @@ class Jose4jSignatureOperator implements JWS {
         throw new InvalidSignatureException(algorithm);
       }
 
-      return jws.getPayload();
+      return new Jose4jVerificationResult(jws.getPayload(), publicKeyInfo);
     }
     catch (CertificateException ex) {
       if (ex.getCause() != null) {

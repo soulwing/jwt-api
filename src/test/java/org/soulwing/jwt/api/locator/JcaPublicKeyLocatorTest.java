@@ -19,12 +19,13 @@
 package org.soulwing.jwt.api.locator;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
 import java.net.URI;
 import java.security.KeyPair;
-import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.Collections;
@@ -39,6 +40,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.soulwing.jwt.api.CertUtil;
 import org.soulwing.jwt.api.KeyUtil;
+import org.soulwing.jwt.api.PublicKeyInfo;
 import org.soulwing.jwt.api.PublicKeyLocator;
 import org.soulwing.jwt.api.X509CertificateValidator;
 
@@ -109,13 +111,14 @@ public class JcaPublicKeyLocatorTest {
       }
     });
 
-    final PublicKey actual = JcaPublicKeyLocator.builder()
+    final PublicKeyInfo actual = JcaPublicKeyLocator.builder()
         .certificateValidator(certificateValidator)
         .strategies(EnumSet.of(PublicKeyLocator.StrategyType.CERT_CHAIN))
         .build()
         .locate(criteria);
 
-    assertThat(actual, is(equalTo(keyPair.getPublic())));
+    assertThat(actual.getPublicKey(), is(equalTo(keyPair.getPublic())));
+    assertThat(actual.getCertificates(), is(not(empty())));
   }
 
   @Test
@@ -131,14 +134,15 @@ public class JcaPublicKeyLocatorTest {
       }
     });
 
-    final PublicKey actual = JcaPublicKeyLocator.builder()
+    final PublicKeyInfo actual = JcaPublicKeyLocator.builder()
         .chainLoader(chainLoader)
         .certificateValidator(certificateValidator)
         .strategies(EnumSet.of(PublicKeyLocator.StrategyType.CERT_CHAIN_URL))
         .build()
         .locate(criteria);
 
-    assertThat(actual, is(equalTo(keyPair.getPublic())));
+    assertThat(actual.getPublicKey(), is(equalTo(keyPair.getPublic())));
+    assertThat(actual.getCertificates(), is(not(empty())));
   }
 
 }

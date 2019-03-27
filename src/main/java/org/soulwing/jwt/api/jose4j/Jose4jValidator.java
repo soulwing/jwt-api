@@ -111,12 +111,13 @@ class Jose4jValidator implements JWTValidator {
   public Claims validate(String encoded) throws JWTEncryptionException,
       JWTSignatureException, JWTValidationException {
     try {
-      final String decoded = signatureOperator.verify(
+      final JWS.Result result = signatureOperator.verify(
           encryptionOperator.decrypt(encoded));
 
-      final Claims claims = new Jose4jClaims(JwtClaims.parse(decoded));
+      final Claims claims = new Jose4jClaims(JwtClaims.parse(result.getPayload()));
 
-      if (!assertions.test(claims, clock)) {
+      if (!assertions.test(claims, new Jose4jAssertionContext(clock,
+          result.getPublicKeyInfo()))) {
         // TODO -- characterize which assertion(s) failed
         throw new JWTValidationException("one or more claims assertions failed");
       }

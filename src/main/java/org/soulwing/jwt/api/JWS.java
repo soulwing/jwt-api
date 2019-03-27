@@ -126,6 +126,27 @@ public interface JWS {
   }
 
   /**
+   * A signature verification result.
+   */
+  interface Result {
+
+    /**
+     * Gets the payload whose signature was verified.
+     * @return payload
+     */
+    String getPayload();
+
+    /**
+     * Public key information for the public key used to verify the signature.
+     * @return public key if the signature was verified using a public key;
+     *    otherwise the return value is {@code null}
+     */
+    PublicKeyInfo getPublicKeyInfo();
+
+  }
+
+
+  /**
    * Creates a signed Compact Serialization of a JWS using the given payload.
    * @param payload payload
    * @return signed JWS object
@@ -141,6 +162,6 @@ public interface JWS {
    * @throws JWTSignatureException if the signature is invalid or an error
    *    occurs in trying to validate it
    */
-  String verify(String encoded) throws JWTSignatureException;
+  Result verify(String encoded) throws JWTSignatureException;
 
 }

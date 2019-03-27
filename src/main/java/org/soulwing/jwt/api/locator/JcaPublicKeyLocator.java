@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.soulwing.jwt.api.PublicKeyInfo;
 import org.soulwing.jwt.api.PublicKeyLocator;
 import org.soulwing.jwt.api.X509CertificateValidator;
 import org.soulwing.jwt.api.exceptions.CertificateException;
@@ -99,13 +100,13 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   }
 
   @Override
-  public PublicKey locate(Criteria criteria)
+  public PublicKeyInfo locate(Criteria criteria)
       throws PublicKeyNotFoundException, CertificateValidationException {
     try {
       for (final StrategyType type : strategies.keySet()) {
         if (!enabledStrategies.contains(type)) continue;
-        final PublicKey key = strategies.get(type).locate(criteria);
-        if (key != null) return key;
+        final PublicKeyInfo info = strategies.get(type).locate(criteria);
+        if (info != null) return info;
       }
       throw new PublicKeyNotFoundException();
     }
@@ -115,19 +116,22 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   }
 
   private interface Strategy {
-    PublicKey locate(Criteria criteria)
+    PublicKeyInfo locate(Criteria criteria)
         throws CertificateValidationException, IOException;
   }
 
   private class CertificateChainStrategy implements Strategy {
 
     @Override
-    public PublicKey locate(Criteria criteria)
+    public PublicKeyInfo locate(Criteria criteria)
         throws CertificateValidationException {
       final List<X509Certificate> chain = criteria.getCertificateChain();
       if (chain == null || chain.isEmpty()) return null;
       certificateValidator.validate(chain);
-      return chain.get(0).getPublicKey();
+      return PublicKeyInfo.builder()
+          .publicKey(chain.get(0).getPublicKey())
+          .certificates(chain)
+          .build();
     }
 
   }
@@ -135,13 +139,16 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   private class CertificateChainUrlStrategy implements Strategy {
 
     @Override
-    public PublicKey locate(Criteria criteria)
+    public PublicKeyInfo locate(Criteria criteria)
         throws CertificateValidationException, IOException {
       final URI url = criteria.getCertificateChainUrl();
       if (url == null) return null;
       final List<X509Certificate> chain = chainLoader.load(url);
       certificateValidator.validate(chain);
-      return chain.get(0).getPublicKey();
+      return PublicKeyInfo.builder()
+          .publicKey(chain.get(0).getPublicKey())
+          .certificates(chain)
+          .build();
     }
 
   }
@@ -149,7 +156,7 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   private class JsonWebKeyStrategy implements Strategy {
 
     @Override
-    public PublicKey locate(Criteria criteria) {
+    public PublicKeyInfo locate(Criteria criteria) {
       // TODO: implement me
       return null;
     }
@@ -159,7 +166,7 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   private class JsonWebKeyUrlStrategy implements Strategy {
 
     @Override
-    public PublicKey locate(Criteria criteria) {
+    public PublicKeyInfo locate(Criteria criteria) {
       // TODO: implement me
       return null;
     }

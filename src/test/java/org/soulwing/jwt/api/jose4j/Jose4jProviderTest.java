@@ -97,7 +97,7 @@ public class Jose4jProviderTest {
             .requireNotExpired(tolerance)
             .requireIssuer(ISSUER)
             .build()
-            .test(claims, Clock.systemUTC()),
+            .test(claims, new Jose4jAssertionContext(Clock.systemUTC(), null)),
         is(true));
   }
 
@@ -114,8 +114,8 @@ public class Jose4jProviderTest {
 
     final Claims claims = createClaims();
     final String encoded = operator.sign(claims.toJson());
-    final String decoded = operator.verify(encoded);
-    final Claims actual = provider.parse(decoded);
+    final JWS.Result result = operator.verify(encoded);
+    final Claims actual = provider.parse(result.getPayload());
 
     assertThat(actual.id().orElse(null), is(equalTo(ID)));
     assertThat(actual.issuer().orElse(null), is(equalTo(ISSUER)));

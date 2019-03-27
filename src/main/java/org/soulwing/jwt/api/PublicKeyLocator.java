@@ -150,14 +150,14 @@ public interface PublicKeyLocator {
   /**
    * Locates the public key described by the given criteria, if possible.
    * @param criteria criteria to match
-   * @return public key
+   * @return public key information
    * @throws CertificateValidationException if a certificate containing the
    *    matching public key fails validation; e.g. expired, revoked,
    *    untrusted, etc
    * @throws PublicKeyNotFoundException if a matching public key cannot be
    *    found
    */
-  PublicKey locate(Criteria criteria) throws PublicKeyNotFoundException,
+  PublicKeyInfo locate(Criteria criteria) throws PublicKeyNotFoundException,
       CertificateValidationException;
 
 }

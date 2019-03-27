@@ -21,9 +21,20 @@ package org.soulwing.jwt.api;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
+import java.io.ByteArrayInputStream;
+import java.io.OutputStreamWriter;
+import java.security.KeyPair;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
+import org.bouncycastle.util.io.pem.PemObject;
+import org.bouncycastle.util.io.pem.PemWriter;
 import org.junit.Test;
 
 /**
@@ -46,15 +57,18 @@ public class BiPredicateAssertionsTest {
   private static final Instant EXPIRES_AT = ISSUED_AT.plus(LIFETIME);
   private static final String ID = "id";
 
+  private static KeyPair keyPair = KeyUtil.newRsaKeyPair();
+
   private MockClock clock = new MockClock();
   private MockClaims claims = new MockClaims();
+  private MockContext context = new MockContext(clock, null);
 
   @Test
   public void testRequireIdWhenNonEmptyString() throws Exception {
     claims.put(Claims.JTI, ID);
     assertThat(BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, clock), is(true));
+        .build().test(claims, context), is(true));
   }
 
   @Test
@@ -62,7 +76,7 @@ public class BiPredicateAssertionsTest {
     claims.put(Claims.JTI, "");
     assertThat(BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, clock), is(false));
+        .build().test(claims, context), is(false));
   }
 
   @Test
@@ -70,7 +84,7 @@ public class BiPredicateAssertionsTest {
     claims.put(Claims.JTI, null);
     assertThat(BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, clock), is(false));
+        .build().test(claims, context), is(false));
   }
 
   @Test
@@ -78,14 +92,14 @@ public class BiPredicateAssertionsTest {
     claims.put(Claims.JTI, 42);
     assertThat(BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, clock), is(false));
+        .build().test(claims, context), is(false));
   }
 
   @Test
   public void testRequireIdWhenNotPresent() throws Exception {
     assertThat(BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, clock), is(false));
+        .build().test(claims, context), is(false));
   }
 
   @Test
@@ -94,7 +108,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIdSatisfies((v) -> v.equals(STRING_VALUE))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -103,7 +117,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, new MockClock(ISSUED_AT.plus(LIFETIME).minusSeconds(1))), is(true));
+        .test(claims, new MockContext(new MockClock(ISSUED_AT.plus(LIFETIME).minusSeconds(1)), null)), is(true));
   }
 
   @Test
@@ -112,7 +126,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, new MockClock(ISSUED_AT.plus(LIFETIME))), is(false));
+        .test(claims, new MockContext(new MockClock(ISSUED_AT.plus(LIFETIME)), null)), is(false));
   }
 
   @Test
@@ -121,7 +135,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -129,7 +143,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -139,7 +153,7 @@ public class BiPredicateAssertionsTest {
         .requireIssuedAtSatisfies((t, clock) ->
             t.equals(Instant.ofEpochSecond(NUMBER_VALUE.longValue())))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -148,7 +162,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireNotExpired(Duration.ZERO)
         .build()
-        .test(claims, new MockClock(EXPIRES_AT.minusSeconds(1))), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -157,7 +171,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireNotExpired(Duration.ZERO)
         .build()
-        .test(claims, new MockClock(EXPIRES_AT)), is(false));
+        .test(claims, new MockContext(new MockClock(EXPIRES_AT), null)), is(false));
   }
 
   @Test
@@ -167,7 +181,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, new MockClock(EXPIRES_AT)), is(true));
+        .test(claims, new MockContext(new MockClock(EXPIRES_AT), null)), is(true));
   }
 
   @Test
@@ -177,7 +191,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, new MockClock(EXPIRES_AT.plus(TOLERANCE))), is(false));
+        .test(claims, new MockContext(new MockClock(EXPIRES_AT.plus(TOLERANCE)), null)), is(false));
   }
 
   @Test
@@ -186,7 +200,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -194,7 +208,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -204,7 +218,7 @@ public class BiPredicateAssertionsTest {
         .requireExpirationSatisfies((t, clock) ->
             t.equals(Instant.ofEpochSecond(NUMBER_VALUE.longValue())))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -213,7 +227,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIssuer(ISSUER)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -222,7 +236,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIssuer("other" + ISSUER, ISSUER)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -231,7 +245,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIssuer("other1" + ISSUER, "other2" + ISSUER)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -240,7 +254,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIssuer(ISSUER)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -248,7 +262,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIssuer(ISSUER)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -257,7 +271,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireIssuerSatisfies((v) -> v.equals(STRING_VALUE))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -266,7 +280,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireSubject(SUBJECT)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -275,7 +289,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireSubject("other" + SUBJECT, SUBJECT)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -284,7 +298,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireSubject("other1" + SUBJECT, "other2" + SUBJECT)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -293,7 +307,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireSubject(SUBJECT)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -301,7 +315,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireSubject(SUBJECT)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -310,7 +324,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireSubjectSatisfies((v) -> v.equals(STRING_VALUE))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -319,7 +333,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireAudience(AUDIENCE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -328,7 +342,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireAudience("other" + AUDIENCE, AUDIENCE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -337,7 +351,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireAudience("other1" + AUDIENCE, "other2" + AUDIENCE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -346,7 +360,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireAudience(AUDIENCE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -354,7 +368,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireAudience(AUDIENCE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -363,7 +377,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireAudienceSatisfies((l) -> l.contains(STRING_VALUE))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -372,7 +386,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -381,7 +395,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
 
@@ -391,7 +405,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, NUMBER_VALUE, STRING_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -400,7 +414,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE, NUMBER_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -409,7 +423,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -418,7 +432,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -426,7 +440,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -435,7 +449,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -444,7 +458,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -453,7 +467,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -462,7 +476,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, NUMBER_VALUE, STRING_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -471,7 +485,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, "other" + STRING_VALUE, STRING_VALUE)
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -480,7 +494,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -489,7 +503,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, "other" + STRING_VALUE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -497,7 +511,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -507,7 +521,7 @@ public class BiPredicateAssertionsTest {
         .requireSatisfies(CLAIM_NAME, String.class,
             (v) -> v.equals(STRING_VALUE))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -517,7 +531,7 @@ public class BiPredicateAssertionsTest {
         .requireSatisfies(CLAIM_NAME, String.class,
             (v) -> v.equals("other" + STRING_VALUE))
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -527,7 +541,7 @@ public class BiPredicateAssertionsTest {
         .requireSatisfies(CLAIM_NAME, String.class,
             (v) -> v.equals(STRING_VALUE))
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -536,7 +550,7 @@ public class BiPredicateAssertionsTest {
         .requireSatisfies(CLAIM_NAME, String.class,
             (v) -> v.equals(STRING_VALUE))
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -546,7 +560,7 @@ public class BiPredicateAssertionsTest {
         .requireInstantSatisfies(CLAIM_NAME, (v, clock) ->
             v.equals(Instant.ofEpochSecond(NUMBER_VALUE.longValue())))
         .build()
-        .test(claims, clock), is(true));
+        .test(claims, context), is(true));
   }
 
   @Test
@@ -556,7 +570,7 @@ public class BiPredicateAssertionsTest {
         .requireInstantSatisfies(CLAIM_NAME,
             (v, clock) -> v.equals(Instant.EPOCH))
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -565,7 +579,7 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireInstantSatisfies(CLAIM_NAME, (v, clock) -> true)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
   @Test
@@ -573,8 +587,188 @@ public class BiPredicateAssertionsTest {
     assertThat(BiPredicateAssertions.builder()
         .requireInstantSatisfies(CLAIM_NAME, (v, clock) -> true)
         .build()
-        .test(claims, clock), is(false));
+        .test(claims, context), is(false));
   }
 
+  @Test
+  public void testRequireSubjectNameMatchesIssuerWhenSubjectNameMatches()
+      throws Exception {
+
+    final X509Certificate certificate =
+        CertUtil.createSelfSignedCert(ISSUER, keyPair, Duration.ZERO, false);
+
+    final PublicKeyInfo publicKeyInfo = PublicKeyInfo.builder()
+        .publicKey(keyPair.getPublic())
+        .certificates(Collections.singletonList(certificate))
+        .build();
+
+    final MockContext context = new MockContext(clock, publicKeyInfo);
+    claims.put(Claims.ISS, ISSUER);
+    assertThat(BiPredicateAssertions.builder()
+        .requireCertificateSubjectMatchesIssuer()
+        .build().test(claims, context), is(true));
+  }
+
+  @Test
+  public void testRequireSubjectNameMatchesIssuerWhenAltSubjectNameMatches()
+      throws Exception {
+
+    final X509Certificate bcCert =
+        CertUtil.createSelfSignedCert("other-" + ISSUER, ISSUER, keyPair,
+            Duration.ZERO, false);
+
+    final X509Certificate certificate = (X509Certificate)
+        CertificateFactory.getInstance("X.509")
+            .generateCertificate(new ByteArrayInputStream(bcCert.getEncoded()));
+
+    final PublicKeyInfo publicKeyInfo = PublicKeyInfo.builder()
+        .publicKey(keyPair.getPublic())
+        .certificates(Collections.singletonList(certificate))
+        .build();
+
+    final MockContext context = new MockContext(clock, publicKeyInfo);
+    claims.put(Claims.ISS, ISSUER);
+    assertThat(BiPredicateAssertions.builder()
+        .requireCertificateSubjectMatchesIssuer()
+        .build().test(claims, context), is(true));
+  }
+
+  @Test
+  public void testRequireSubjectNameMatchesIssuerWhenSubjectNameDoesNotMatch()
+      throws Exception {
+
+    final X509Certificate certificate =
+        CertUtil.createSelfSignedCert("other" + ISSUER, keyPair,
+            Duration.ZERO, false);
+
+    final PublicKeyInfo publicKeyInfo = PublicKeyInfo.builder()
+        .publicKey(keyPair.getPublic())
+        .certificates(Collections.singletonList(certificate))
+        .build();
+
+    final MockContext context = new MockContext(clock, publicKeyInfo);
+    assertThat(BiPredicateAssertions.builder()
+        .requireCertificateSubjectMatches(ISSUER)
+        .build().test(claims, context), is(false));
+  }
+
+  @Test
+  public void testRequireSubjectNameMatchesWhenSubjectNameMatches()
+      throws Exception {
+
+    final X509Certificate certificate =
+        CertUtil.createSelfSignedCert(ISSUER, keyPair, Duration.ZERO, false);
+
+    final PublicKeyInfo publicKeyInfo = PublicKeyInfo.builder()
+        .publicKey(keyPair.getPublic())
+        .certificates(Collections.singletonList(certificate))
+        .build();
+
+    final MockContext context = new MockContext(clock, publicKeyInfo);
+    assertThat(BiPredicateAssertions.builder()
+        .requireCertificateSubjectMatches(ISSUER)
+        .build().test(claims, context), is(true));
+  }
+
+  @Test
+  public void testRequireSubjectNameMatchesWhenAltSubjectNameMatches()
+      throws Exception {
+
+    final X509Certificate bcCert =
+        CertUtil.createSelfSignedCert("other-" + ISSUER, ISSUER, keyPair,
+            Duration.ZERO, false);
+
+    final X509Certificate certificate = (X509Certificate)
+        CertificateFactory.getInstance("X.509")
+            .generateCertificate(new ByteArrayInputStream(bcCert.getEncoded()));
+
+    final PublicKeyInfo publicKeyInfo = PublicKeyInfo.builder()
+        .publicKey(keyPair.getPublic())
+        .certificates(Collections.singletonList(certificate))
+        .build();
+
+    final MockContext context = new MockContext(clock, publicKeyInfo);
+    assertThat(BiPredicateAssertions.builder()
+        .requireCertificateSubjectMatches(ISSUER)
+        .build().test(claims, context), is(true));
+  }
+
+  @Test
+  public void testRequireSubjectNameMatchesWhenSubjectNameDoesNotMatch()
+      throws Exception {
+
+    final X509Certificate certificate =
+        CertUtil.createSelfSignedCert("other" + ISSUER, keyPair,
+            Duration.ZERO, false);
+
+    final PublicKeyInfo publicKeyInfo = PublicKeyInfo.builder()
+        .publicKey(keyPair.getPublic())
+        .certificates(Collections.singletonList(certificate))
+        .build();
+
+    final MockContext context = new MockContext(clock, publicKeyInfo);
+    assertThat(BiPredicateAssertions.builder()
+        .requireCertificateSubjectMatches(ISSUER)
+        .build().test(claims, context), is(false));
+  }
+
+  @Test
+  public void testRequireClaimAndPublicKeyInfoSatisfiesWhenSatisfied()
+      throws Exception {
+    claims.put(CLAIM_NAME, STRING_VALUE);
+    assertThat(BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies(CLAIM_NAME, (v, publicKeyInfo) -> true)
+        .build()
+        .test(claims, context), is(true));
+  }
+
+  @Test
+  public void testRequireClaimAndPublicKeyInfoSatisfiesWhenNotSatisfied()
+      throws Exception {
+    claims.put(CLAIM_NAME, STRING_VALUE);
+    assertThat(BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies((publicKeyInfo) -> false)
+        .build()
+        .test(claims, context), is(false));
+  }
+
+  @Test
+  public void testRequirePublicKeyInfoSatisfiesWhenSatisfied()
+      throws Exception {
+    assertThat(BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies((publicKeyInfo) -> true)
+        .build()
+        .test(claims, context), is(true));
+  }
+
+  @Test
+  public void testRequirePublicKeyInfoSatisfiesWhenNotSatisfied()
+      throws Exception {
+    assertThat(BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies(CLAIM_NAME, (v, publicKeyInfo) -> false)
+        .build()
+        .test(claims, context), is(false));
+  }
+
+  private static class MockContext implements Assertions.Context {
+
+    private final Clock clock;
+    private final PublicKeyInfo publicKeyInfo;
+
+    public MockContext(Clock clock, PublicKeyInfo publicKeyInfo) {
+      this.clock = clock;
+      this.publicKeyInfo = publicKeyInfo;
+    }
+
+    @Override
+    public Clock getClock() {
+      return clock;
+    }
+
+    @Override
+    public PublicKeyInfo getPublicKeyInfo() {
+      return publicKeyInfo;
+    }
+  }
 
 }

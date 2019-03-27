@@ -105,6 +105,33 @@ public interface Assertions {
     Builder requireIssuerSatisfies(Predicate<String> condition);
 
     /**
+     * Requires that the certificate associated with a public key that was
+     * used to verify the signature has a subject name that exactly matches
+     * the value of the {@value Claims#ISS} claim.
+     * <p>
+     * When matching the issuer name to the certificate subject, the common
+     * name (CN) component of the subject distinguished name, as well as any
+     * subject alternative names are considered.
+     *
+     * @return this builder
+     */
+    Builder requireCertificateSubjectMatchesIssuer();
+
+    /**
+     * Requires that the certificate associated with a public key that was
+     * used to verify the signature has a subject name that exactly matches
+     * the given subject name.
+     * <p>
+     * When matching the given name to the certificate subject, the common
+     * name (CN) component of the subject distinguished name, as well as any
+     * subject alternative names are considered.
+     *
+     * @param subjectName the subject name to match
+     * @return this builder
+     */
+    Builder requireCertificateSubjectMatches(String subjectName);
+
+    /**
      * Requires an {@value Claims#AUD} claim whose value is equal to one of the
      * given audiences.
      * @param audience audience to match
@@ -181,6 +208,24 @@ public interface Assertions {
         BiPredicate<Instant, Clock> condition);
 
     /**
+     * Requires that the public key info for a public key used to verify the
+     * signature satisfies the given condition.
+     * @param name name of a string-valued claim to pass to the condition
+     * @param condition the condition to satisfy
+     * @return this builder
+     */
+    Builder requirePublicKeyInfoSatisfies(String name,
+        BiPredicate<String, PublicKeyInfo> condition);
+
+    /**
+     * Requires that the public key info for a public key used to verify the
+     * signature satisfies the given condition.
+     * @param condition the condition to satisfy
+     * @return this builder
+     */
+    Builder requirePublicKeyInfoSatisfies(Predicate<PublicKeyInfo> condition);
+
+    /**
      * Creates a new assertions object using the configuration of this builder.
      * @return assertions object.
      */
@@ -189,10 +234,30 @@ public interface Assertions {
   }
 
   /**
+   * A context for evaluation assertions on claims.
+   */
+  interface Context {
+
+    /**
+     * Gets the reference clock for assertions on time values.
+     * @return clock (never {@code null})
+     */
+    Clock getClock();
+
+    /**
+     * Public key information for the public key used to verify the signature.
+     * @return public key if the signature verified using a public key;
+     *    otherwise the return value is {@code null}
+     */
+    PublicKeyInfo getPublicKeyInfo();
+
+  }
+
+  /**
    * Applies these assertions to the given claims.
    * @param claims the claims to test
-   * @param clock reference clock for assertions on time values
+   * @param context context for evaluating the assertions
    */
-  boolean test(Claims claims, Clock clock);
+  boolean test(Claims claims, Context context);
 
 }

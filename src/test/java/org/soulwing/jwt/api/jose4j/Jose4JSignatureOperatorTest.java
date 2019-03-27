@@ -43,6 +43,7 @@ import org.junit.rules.ExpectedException;
 import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.KeyProvider;
 import org.soulwing.jwt.api.KeyUtil;
+import org.soulwing.jwt.api.PublicKeyInfo;
 import org.soulwing.jwt.api.PublicKeyLocator;
 import org.soulwing.jwt.api.SingletonKeyProvider;
 import org.soulwing.jwt.api.exceptions.CertificateException;
@@ -150,7 +151,7 @@ public class Jose4JSignatureOperatorTest {
     assertThat(fields.getString("kid"), is(equalTo(KEY_ID)));
     assertThat(fields.getString("alg"), is(equalTo(ALGORITHM.toToken())));
 
-    assertThat(operator.verify(encoded), is(equalTo(PAYLOAD)));
+    assertThat(operator.verify(encoded).getPayload(), is(equalTo(PAYLOAD)));
   }
 
   @Test
@@ -229,11 +230,11 @@ public class Jose4JSignatureOperatorTest {
     context.checking(new Expectations() {
       {
         oneOf(publicKeyLocator).locate(with(any(PublicKeyLocator.Criteria.class)));
-        will(returnValue(keyPair.getPublic()));
+        will(returnValue(PublicKeyInfo.builder().publicKey(keyPair.getPublic()).build()));
       }
     });
 
-    assertThat(operator.verify(encoded), is(equalTo(PAYLOAD)));
+    assertThat(operator.verify(encoded).getPayload(), is(equalTo(PAYLOAD)));
   }
 
   @Test
