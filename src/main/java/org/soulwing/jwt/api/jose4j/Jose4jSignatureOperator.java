@@ -22,7 +22,6 @@ import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.lang.JoseException;
 import org.soulwing.jwt.api.JWS;
-import org.soulwing.jwt.api.KeyInfo;
 import org.soulwing.jwt.api.KeyProvider;
 import org.soulwing.jwt.api.PublicKeyLocator;
 import org.soulwing.jwt.api.exceptions.CertificateException;
@@ -102,13 +101,8 @@ class Jose4jSignatureOperator implements JWS {
       jws.setPayload(payload);
       jws.setAlgorithmHeaderValue(algorithm.toToken());
       if (algorithm != Algorithm.none) {
-        final KeyInfo keyInfo = keyProvider.currentKey();
-        jws.setKey(keyInfo.getKey());
-        if (keyInfo.getId() != null) {
-          jws.setKeyIdHeaderValue(keyInfo.getId());
-        }
+        JoseKeyInfoUtil.configureKeyInfo(jws, keyProvider.currentKey());
       }
-
       return jws.getCompactSerialization();
     }
     catch (KeyProviderException | JoseException ex) {

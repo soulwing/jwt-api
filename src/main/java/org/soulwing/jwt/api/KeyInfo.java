@@ -22,6 +22,7 @@ import java.net.URI;
 import java.security.Key;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -132,7 +133,7 @@ public class KeyInfo {
    * @return certificate list (possibly empty, but never {@code null})
    */
   public List<X509Certificate> getCertificates() {
-    return new ArrayList<>(certificates);
+    return Collections.unmodifiableList(certificates);
   }
 
   /**

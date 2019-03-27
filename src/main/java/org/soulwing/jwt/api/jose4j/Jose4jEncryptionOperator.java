@@ -22,7 +22,6 @@ import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.lang.JoseException;
 import org.soulwing.jwt.api.JWE;
-import org.soulwing.jwt.api.KeyInfo;
 import org.soulwing.jwt.api.KeyProvider;
 import org.soulwing.jwt.api.exceptions.DecryptionKeyNotFoundException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
@@ -114,12 +113,7 @@ class Jose4jEncryptionOperator implements JWE {
     try {
       final JsonWebEncryption jwe = new JsonWebEncryption();
 
-      final KeyInfo keyInfo = keyProvider.currentKey();
-      jwe.setKey(keyInfo.getKey());
-      if (keyInfo.getId() != null) {
-        jwe.setKeyIdHeaderValue(keyInfo.getId());
-      }
-
+      JoseKeyInfoUtil.configureKeyInfo(jwe, keyProvider.currentKey());
       jwe.setAlgorithmHeaderValue(keyManagementAlgorithm.toToken());
       jwe.setEncryptionMethodHeaderParameter(contentEncryptionAlgorithm.toToken());
       if (compressionAlgorithm != null) {
