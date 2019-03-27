@@ -173,4 +173,9 @@ class Jose4jClaims implements Claims {
     return delegate.toJson();
   }
 
+  @Override
+  public String toString() {
+    return toJson();
+  }
+
 }
