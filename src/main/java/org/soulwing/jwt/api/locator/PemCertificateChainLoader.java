@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -49,33 +48,35 @@ public class PemCertificateChainLoader implements CertificateChainLoader {
    */
   static final int MAX_CHAIN_LENGTH = 10;
 
-  private static final PemCertificateChainLoader INSTANCE =
+  private static final PemCertificateChainLoader DEFAULT_INSTANCE =
       new PemCertificateChainLoader();
 
-  public static PemCertificateChainLoader getInstance() {
-    return INSTANCE;
+  public static PemCertificateChainLoader getDefaultInstance() {
+    return DEFAULT_INSTANCE;
   }
-
-  private PemCertificateChainLoader() {}
 
   @Override
   public List<X509Certificate> load(URI url)
       throws CertificateException, IOException {
     assertIsSecure(url);
-    return toCertificates(loadPemObjects(url.toURL()));
+    return toCertificates(loadPemObjects(url));
   }
 
   private void assertIsSecure(URI url) throws CertificateException {
     final String scheme = url.getScheme();
-    if (scheme.startsWith("http") && !scheme.equals("https")) {
+    if (scheme != null && scheme.startsWith("http") && !scheme.equals("https")) {
       throw new CertificateException("certificate URL is not secure: " + url);
     }
   }
 
-  private List<PemObject> loadPemObjects(URL url) throws IOException {
-    try (final InputStream inputStream = url.openStream()) {
+  private List<PemObject> loadPemObjects(URI url) throws IOException {
+    try (final InputStream inputStream = openStream(url)) {
       return loadPemObjects(inputStream);
     }
+  }
+
+  protected InputStream openStream(URI url) throws IOException {
+    return url.toURL().openStream();
   }
 
   private List<PemObject> loadPemObjects(InputStream inputStream)

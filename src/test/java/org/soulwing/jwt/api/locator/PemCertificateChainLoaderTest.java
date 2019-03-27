@@ -74,7 +74,7 @@ public class PemCertificateChainLoaderTest {
   public void testLoadWhenUnsecureHttpUri() throws Exception {
     expectedException.expect(CertificateException.class);
     expectedException.expectMessage("not secure");
-    PemCertificateChainLoader.getInstance().load(
+    PemCertificateChainLoader.getDefaultInstance().load(
         URI.create("http://localhost/test"));
   }
 
@@ -86,7 +86,7 @@ public class PemCertificateChainLoaderTest {
           CertUtil.createChain(3, Duration.ZERO, outputStream);
       outputStream.flush();
       final List<X509Certificate> actual =
-          PemCertificateChainLoader.getInstance().load(path.toUri());
+          PemCertificateChainLoader.getDefaultInstance().load(path.toUri());
       assertThat(actual, is(equalTo(chain)));
     }
   }
@@ -104,7 +104,7 @@ public class PemCertificateChainLoaderTest {
       }
     }
     assertThat(
-        PemCertificateChainLoader.getInstance().load(path.toUri()).size(),
+        PemCertificateChainLoader.getDefaultInstance().load(path.toUri()).size(),
         is(equalTo(10)));
   }
 

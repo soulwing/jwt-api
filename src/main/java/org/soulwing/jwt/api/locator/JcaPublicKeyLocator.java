@@ -44,7 +44,7 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
 
   private final Map<StrategyType, Strategy> strategies = new LinkedHashMap<>();
 
-  private CertificateChainLoader chainLoader = PemCertificateChainLoader.getInstance();
+  private CertificateChainLoader chainLoader = PemCertificateChainLoader.getDefaultInstance();
   private Set<StrategyType> enabledStrategies = EnumSet.allOf(StrategyType.class);
   private X509CertificateValidator certificateValidator;
 
