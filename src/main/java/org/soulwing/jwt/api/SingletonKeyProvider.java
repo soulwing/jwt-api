@@ -28,7 +28,7 @@ import java.util.Optional;
  */
 public class SingletonKeyProvider implements KeyProvider {
 
-  private final Tuple tuple;
+  private final KeyInfo keyInfo;
 
   /**
    * Creates a new instance using the specified key.
@@ -36,7 +36,7 @@ public class SingletonKeyProvider implements KeyProvider {
    * @return key provider
    */
   public static SingletonKeyProvider with(Key key) {
-    return new SingletonKeyProvider(new Tuple(null, key));
+    return new SingletonKeyProvider(KeyInfo.builder().key(key).build());
   }
 
   /**
@@ -46,19 +46,19 @@ public class SingletonKeyProvider implements KeyProvider {
    * @return key provider
    */
   public static SingletonKeyProvider with(String id, Key key) {
-    return new SingletonKeyProvider(new Tuple(id, key));
+    return new SingletonKeyProvider(KeyInfo.builder().id(id).key(key).build());
   }
 
-  private SingletonKeyProvider(Tuple tuple) {
-    this.tuple = tuple;
+  private SingletonKeyProvider(KeyInfo keyInfo) {
+    this.keyInfo = keyInfo;
   }
 
   /**
    * {@inheritDoc}
    */
   @Override
-  public Tuple currentKey() {
-    return tuple;
+  public KeyInfo currentKey() {
+    return keyInfo;
   }
 
   /**
@@ -72,11 +72,11 @@ public class SingletonKeyProvider implements KeyProvider {
    */
   @Override
   public Optional<Key> retrieveKey(String id) {
-    final String keyId = tuple.getId();
+    final String keyId = keyInfo.getId();
     if (id != null && keyId != null && !id.equals(keyId)) {
       return Optional.empty();
     }
-    return Optional.of(tuple.getKey());
+    return Optional.of(keyInfo.getKey());
   }
 
 }

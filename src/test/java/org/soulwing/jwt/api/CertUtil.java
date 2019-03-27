@@ -24,9 +24,6 @@ import java.io.OutputStreamWriter;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.Provider;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.cert.CertificateException;
@@ -52,7 +49,6 @@ import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
-import org.soulwing.jwt.api.KeyUtil;
 
 /**
  * Utility methods for creating signed certificates.
@@ -64,8 +60,9 @@ public class CertUtil {
   private static final String SIGNATURE_ALGORITHM = "SHA256WithRSA";
 
   static {
-    Provider bcProvider = new BouncyCastleProvider();
-    Security.addProvider(bcProvider);
+    if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+      Security.addProvider(new BouncyCastleProvider());
+    }
   }
 
   public static List<X509Certificate> createChain(
@@ -138,7 +135,8 @@ public class CertUtil {
     final ContentSigner contentSigner =
         new JcaContentSignerBuilder(algorithm).build(subjectKeyPair.getPrivate());
 
-    return new JcaX509CertificateConverter().setProvider("BC")
+    return new JcaX509CertificateConverter()
+        .setProvider(BouncyCastleProvider.PROVIDER_NAME)
         .getCertificate(certBuilder.build(contentSigner));
   }
 

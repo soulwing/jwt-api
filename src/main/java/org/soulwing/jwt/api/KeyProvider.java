@@ -32,45 +32,11 @@ import org.soulwing.jwt.api.exceptions.KeyProviderException;
 public interface KeyProvider {
 
   /**
-   * A tuple containing a key and its (optional) corresponding ID.
-   */
-  class Tuple {
-
-    private final String id;
-    private final Key key;
-
-    public Tuple(String id, Key key) {
-      if (key == null) {
-        throw new NullPointerException("key is required");
-      }
-      this.id = id;
-      this.key = key;
-    }
-
-    /**
-     * Unique identifier for the key.
-     * @return identifier or {@code null} if none has been set
-     */
-    public String getId() {
-      return id;
-    }
-
-    /**
-     * The subject key.
-     * @return key
-     */
-    public Key getKey() {
-      return key;
-    }
-
-  }
-
-  /**
    * Gets the current key to use for signature or encryption operations.
    * @return tuple containing the key and optional corresponding identifier
    * @throws KeyProviderException if an error occurs in obtaining the key
    */
-  Tuple currentKey() throws KeyProviderException;
+  KeyInfo currentKey() throws KeyProviderException;
 
   /**
    * Retrieves a key to use for signature validation or decryption operations.
