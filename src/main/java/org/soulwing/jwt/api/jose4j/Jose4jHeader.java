@@ -59,10 +59,10 @@ class Jose4jHeader implements JWE.Header, JWS.Header {
    * @throws JWTParseException if an error occurs in decoding the JOSE header
    */
   static Jose4jHeader newInstance(String encoded) throws JWTParseException {
-    final String[] parts = CompactSerializer.deserialize(encoded);
-    if (parts.length == 0) {
-      throw new JWTParseException("no header is present");
+    if (encoded == null || encoded.trim().isEmpty()) {
+      throw new JWTParseException("encoded token is required");
     }
+    final String[] parts = CompactSerializer.deserialize(encoded);
     return toHeaders(decode(parts[0]));
   }
 
@@ -79,10 +79,9 @@ class Jose4jHeader implements JWE.Header, JWS.Header {
 
   private static String decode(String part) throws JWTParseException {
     try {
-      return new String(Base64.getUrlDecoder().decode(part),
-          StandardCharsets.UTF_8);
+      return new String(Base64.getUrlDecoder().decode(part), StandardCharsets.UTF_8);
     }
-    catch (IllegalArgumentException ex) {
+    catch (RuntimeException ex) {
       throw new JWTParseException("invalid header encoding", ex);
     }
   }

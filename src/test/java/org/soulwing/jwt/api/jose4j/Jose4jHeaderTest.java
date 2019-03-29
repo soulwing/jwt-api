@@ -112,8 +112,24 @@ public class Jose4jHeaderTest {
   }
 
   @Test(expected = JWTParseException.class)
+  public void testNewInstanceWhenNullHeader() throws Exception {
+    Jose4jHeader.newInstance(null);
+  }
+
+  @Test(expected = JWTParseException.class)
+  public void testNewInstanceWhenEmptyHeader() throws Exception {
+    Jose4jHeader.newInstance("");
+  }
+
+  @Test(expected = JWTParseException.class)
   public void testNewInstanceWhenParseError() throws Exception {
     Jose4jHeader.newInstance("foobar");
   }
+
+  @Test(expected = JWTParseException.class)
+  public void testNewInstanceWhenEncodingError() throws Exception {
+    Jose4jHeader.newInstance("+");
+  }
+
 
 }
