@@ -20,7 +20,6 @@ package org.soulwing.jwt.api.locator;
 
 import java.io.IOException;
 import java.net.URI;
-import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -48,6 +47,7 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
   private CertificateChainLoader chainLoader = PemCertificateChainLoader.getDefaultInstance();
   private Set<StrategyType> enabledStrategies = EnumSet.allOf(StrategyType.class);
   private X509CertificateValidator certificateValidator;
+  private X509CertificateValidator.Factory certificateValidatorFactory;
 
   private JcaPublicKeyLocator() {
     strategies.put(StrategyType.CERT_CHAIN, new CertificateChainStrategy());
@@ -76,15 +76,29 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
 
     @Override
     public PublicKeyLocator.Builder certificateValidator(
-        X509CertificateValidator certificateValidator) {
-      locator.certificateValidator = certificateValidator;
+        X509CertificateValidator validator) {
+      locator.certificateValidator = validator;
+      return this;
+    }
+
+    @Override
+    public PublicKeyLocator.Builder certificateValidatorFactory(
+        X509CertificateValidator.Factory validatorFactory) {
+      locator.certificateValidatorFactory = validatorFactory;
       return this;
     }
 
     @Override
     public PublicKeyLocator build() {
-      if (locator.certificateValidator == null) {
-        throw new IllegalArgumentException("certificate validator is required");
+      if (locator.certificateValidator == null
+          && locator.certificateValidatorFactory == null) {
+        throw new IllegalArgumentException(
+            "certificate validator or validator factory is required");
+      }
+      if (locator.certificateValidator != null
+          && locator.certificateValidatorFactory != null) {
+        throw new IllegalArgumentException("specify either a certificate " +
+            "validator or validator factory, not both");
       }
       return locator;
     }
@@ -115,6 +129,12 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
     }
   }
 
+  private X509CertificateValidator getValidator(Criteria criteria,
+      List<X509Certificate> chain) throws CertificateValidationException {
+    if (certificateValidator != null) return certificateValidator;
+    return certificateValidatorFactory.getValidator(criteria, chain);
+  }
+
   private interface Strategy {
     PublicKeyInfo locate(Criteria criteria)
         throws CertificateValidationException, IOException;
@@ -127,7 +147,7 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
         throws CertificateValidationException {
       final List<X509Certificate> chain = criteria.getCertificateChain();
       if (chain == null || chain.isEmpty()) return null;
-      certificateValidator.validate(chain);
+      getValidator(criteria, chain).validate(chain);
       return PublicKeyInfo.builder()
           .publicKey(chain.get(0).getPublicKey())
           .certificates(chain)
@@ -144,7 +164,7 @@ public class JcaPublicKeyLocator implements PublicKeyLocator {
       final URI url = criteria.getCertificateChainUrl();
       if (url == null) return null;
       final List<X509Certificate> chain = chainLoader.load(url);
-      certificateValidator.validate(chain);
+      getValidator(criteria, chain).validate(chain);
       return PublicKeyInfo.builder()
           .publicKey(chain.get(0).getPublicKey())
           .certificates(chain)

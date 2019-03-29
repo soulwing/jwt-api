@@ -66,10 +66,18 @@ public interface PublicKeyLocator {
 
     /**
      * Specifies the certificate validator.
-     * @param certificateValidator certificate validator
+     * @param validator certificate validator
      * @return this builder
      */
-    Builder certificateValidator(X509CertificateValidator certificateValidator);
+    Builder certificateValidator(X509CertificateValidator validator);
+
+    /**
+     * Specifies the certificate validator factory.
+     * @param validatorFactory certificate validator factory
+     * @return this builder
+     */
+    Builder certificateValidatorFactory(
+        X509CertificateValidator.Factory validatorFactory);
 
     /**
      * Builds a locator in accordance with the configuration of this builder.

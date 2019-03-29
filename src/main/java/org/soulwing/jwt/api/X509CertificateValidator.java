@@ -18,7 +18,6 @@
  */
 package org.soulwing.jwt.api;
 
-import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
@@ -30,6 +29,30 @@ import org.soulwing.jwt.api.exceptions.CertificateValidationException;
  * @author Carl Harris
  */
 public interface X509CertificateValidator {
+
+  /**
+   * A factory for a {@link X509CertificateValidator}.
+   * <p>
+   * An instance of this factory type can be used to allow the validator
+   * configuration to be determined from public key search criteria and
+   * the certificate chain derived for those criteria.
+   */
+  interface Factory {
+
+    /**
+     * Gets a validator appropriate to the given public key criteria and
+     * the certificate chain derived from it.
+     * @param criteria public key criteria
+     * @param certificateChain certificate chain
+     * @return certificate validator
+     * @throws CertificateValidationException if a validator cannot be
+     *    produced due to an unexpected error
+     */
+    X509CertificateValidator getValidator(PublicKeyLocator.Criteria criteria,
+        List<X509Certificate> certificateChain)
+        throws CertificateValidationException;
+
+  }
 
   /**
    * Validates the given chain of certificates.

@@ -71,7 +71,12 @@ public class PemCertificateChainLoader implements CertificateChainLoader {
 
   private List<PemObject> loadPemObjects(URI url) throws IOException {
     try (final InputStream inputStream = openStream(url)) {
-      return loadPemObjects(inputStream);
+      final List<PemObject> pemObjects = loadPemObjects(inputStream);
+      // slurp remainder of stream; allows stream filters to see entire stream
+      while (inputStream.read() != -1) {
+        assert true;
+      }
+      return pemObjects;
     }
   }
 
@@ -81,16 +86,15 @@ public class PemCertificateChainLoader implements CertificateChainLoader {
 
   private List<PemObject> loadPemObjects(InputStream inputStream)
       throws IOException {
-    try (final PemReader reader = new PemReader(new InputStreamReader(
-        inputStream, StandardCharsets.US_ASCII))) {
-      final List<PemObject> objects = new LinkedList<>();
-      PemObject object = reader.readPemObject();
-      while (objects.size() < MAX_CHAIN_LENGTH && object != null) {
-        objects.add(object);
-        object = reader.readPemObject();
-      }
-      return objects;
+    final PemReader reader = new PemReader(new InputStreamReader(
+        inputStream, StandardCharsets.US_ASCII));
+    final List<PemObject> objects = new LinkedList<>();
+    PemObject object = reader.readPemObject();
+    while (objects.size() < MAX_CHAIN_LENGTH && object != null) {
+      objects.add(object);
+      object = reader.readPemObject();
     }
+    return objects;
   }
 
   private List<X509Certificate> toCertificates(List<PemObject> objects)

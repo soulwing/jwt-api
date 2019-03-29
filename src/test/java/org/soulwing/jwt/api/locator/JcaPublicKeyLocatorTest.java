@@ -62,7 +62,11 @@ public class JcaPublicKeyLocatorTest {
   public final ExpectedException expectedException = ExpectedException.none();
 
   @Mock
-  private X509CertificateValidator certificateValidator;
+  private X509CertificateValidator validator;
+
+  @Mock
+  private X509CertificateValidator.Factory validatorFactory;
+
 
   @Mock
   private CertificateChainLoader chainLoader;
@@ -80,13 +84,13 @@ public class JcaPublicKeyLocatorTest {
   @Test
   public void testValidBuild() throws Exception {
     JcaPublicKeyLocator.builder()
-        .certificateValidator(certificateValidator)
+        .certificateValidator(validator)
         .strategies(EnumSet.allOf(PublicKeyLocator.StrategyType.class))
         .build();
   }
 
   @Test
-  public void testBuildWhenNoCertificateValidator() throws Exception {
+  public void testBuildWhenNoValidatorOrValidatorFactory() throws Exception {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage("certificate validator");
     JcaPublicKeyLocator.builder()
@@ -95,9 +99,21 @@ public class JcaPublicKeyLocatorTest {
   }
 
   @Test
+  public void testBuildWhenBothValidatorAndValidatorFactory() throws Exception {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("either a certificate validator");
+    JcaPublicKeyLocator.builder()
+        .certificateValidator(validator)
+        .certificateValidatorFactory(validatorFactory)
+        .strategies(EnumSet.allOf(PublicKeyLocator.StrategyType.class))
+        .build();
+  }
+
+
+  @Test
   public void testBuildWhenNoStrategies() throws Exception {
     JcaPublicKeyLocator.builder()
-        .certificateValidator(certificateValidator)
+        .certificateValidator(validator)
         .build();
   }
 
@@ -107,12 +123,15 @@ public class JcaPublicKeyLocatorTest {
       {
         oneOf(criteria).getCertificateChain();
         will(returnValue(Collections.singletonList(certificate)));
-        oneOf(certificateValidator).validate(Collections.singletonList(certificate));
+        oneOf(validatorFactory).getValidator(criteria,
+            Collections.singletonList(certificate));
+        will(returnValue(validator));
+        oneOf(validator).validate(Collections.singletonList(certificate));
       }
     });
 
     final PublicKeyInfo actual = JcaPublicKeyLocator.builder()
-        .certificateValidator(certificateValidator)
+        .certificateValidatorFactory(validatorFactory)
         .strategies(EnumSet.of(PublicKeyLocator.StrategyType.CERT_CHAIN))
         .build()
         .locate(criteria);
@@ -130,13 +149,13 @@ public class JcaPublicKeyLocatorTest {
         will(returnValue(url));
         oneOf(chainLoader).load(url);
         will(returnValue(Collections.singletonList(certificate)));
-        oneOf(certificateValidator).validate(Collections.singletonList(certificate));
+        oneOf(validator).validate(Collections.singletonList(certificate));
       }
     });
 
     final PublicKeyInfo actual = JcaPublicKeyLocator.builder()
         .chainLoader(chainLoader)
-        .certificateValidator(certificateValidator)
+        .certificateValidator(validator)
         .strategies(EnumSet.of(PublicKeyLocator.StrategyType.CERT_CHAIN_URL))
         .build()
         .locate(criteria);
