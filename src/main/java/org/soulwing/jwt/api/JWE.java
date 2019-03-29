@@ -22,6 +22,7 @@ import java.util.Arrays;
 
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
+import org.soulwing.jwt.api.exceptions.JWTSignatureException;
 
 /**
  * A JSON Web Encryption operator.
@@ -193,6 +194,51 @@ public interface JWE {
      *    encryption operator
      */
     JWE build() throws JWTConfigurationException;
+
+  }
+
+  /**
+   * A JWE JOSE header.
+   */
+  interface Header extends JoseHeader {
+
+    /**
+     * Gets the value of the key management algorithm header ({@code alg})
+     * @return header value or {@code null} if not present
+     */
+    String getKeyManagementAlgorithm();
+
+    /**
+     * Gets the value of the content encryption algorithm header ({@code enc})
+     * @return header value or {@code null} if not present
+     */
+    String getContentEncryptionAlgorithm();
+
+    /**
+     * Gets the value of the compression algorithm header ({@code zip})
+     * @return header value or {@code null} if not present
+     */
+    String getCompressionAlgorithm();
+
+  }
+
+  /**
+   * A factory that produces JWE operator instances.
+   * <p>
+   * An instance of this type can be used to produce an operator based on the
+   * header specified for a JWT.
+   */
+  interface Factory {
+
+    /**
+     * Gets an operator appropriate for use with an encrypted JWT with the
+     * specified header claims.
+     * @param header JOSE header
+     * @return operator
+     * @throws JWTConfigurationException if an unexpected error occurs in
+     *    producing an operator
+     */
+    JWE getOperator(Header header) throws JWTConfigurationException;
 
   }
 

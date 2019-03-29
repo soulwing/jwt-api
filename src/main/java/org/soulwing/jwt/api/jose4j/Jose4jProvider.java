@@ -18,8 +18,12 @@
  */
 package org.soulwing.jwt.api.jose4j;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.consumer.InvalidJwtException;
+import org.jose4j.jwx.CompactSerializer;
 import org.soulwing.jwt.api.Assertions;
 import org.soulwing.jwt.api.BiPredicateAssertions;
 import org.soulwing.jwt.api.Claims;
@@ -28,6 +32,7 @@ import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.JWTGenerator;
 import org.soulwing.jwt.api.JWTProvider;
 import org.soulwing.jwt.api.JWTValidator;
+import org.soulwing.jwt.api.JoseHeader;
 import org.soulwing.jwt.api.exceptions.JWTParseException;
 
 /**
@@ -53,6 +58,11 @@ public class Jose4jProvider implements JWTProvider {
   }
 
   @Override
+  public JoseHeader header(String encoded) throws JWTParseException {
+    return Jose4jHeader.newInstance(encoded);
+  }
+
+  @Override
   public Assertions.Builder assertions() {
     return BiPredicateAssertions.builder();
   }
@@ -74,7 +84,7 @@ public class Jose4jProvider implements JWTProvider {
 
   @Override
   public JWTValidator.Builder validator() {
-    return Jose4jValidator.builder();
+    return Jose4jValidator.builder(this);
   }
 
 }

@@ -22,6 +22,7 @@ import java.time.Clock;
 
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
+import org.soulwing.jwt.api.exceptions.JWTParseException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
 import org.soulwing.jwt.api.exceptions.JWTValidationException;
 
@@ -42,18 +43,34 @@ public interface JWTValidator {
   interface Builder {
 
     /**
-     * Sets the JWE operator to use for decryption operations.
+     * Specifies the JWE operator to use for decryption operations.
      * @param operator JWE operator
      * @return this builder
      */
-    Builder decryption(JWE operator);
+    Builder encryptionOperator(JWE operator);
+
+    /**
+     * Specifies the JWE operator factory that will be used to produce operators
+     * for decryption operations.
+     * @param operatorFactory JWE operator factory
+     * @return this builder
+     */
+    Builder encryptionOperatorFactory(JWE.Factory operatorFactory);
 
     /**
      * Sets the JWS operator to use for signature validation operations.
      * @param operator JWS operator
      * @return this builder
      */
-    Builder signatureValidation(JWS operator);
+    Builder signatureOperator(JWS operator);
+
+    /**
+     * Specifies the JWS operator factory that will be used to produce operators
+     * for decryption operations.
+     * @param operatorFactory JWS operator factory
+     * @return this builder
+     */
+    Builder signatureOperatorFactory(JWS.Factory operatorFactory);
 
     /**
      * Sets assertions to be tested on claims.
@@ -99,6 +116,7 @@ public interface JWTValidator {
    *
    * @param encoded JWE or JWS in the Compact Serialization encoding
    * @return claims encapsulated in the JWT
+   * @throws JWTParseException if the JWT cannot be successfully parsed
    * @throws JWTEncryptionException if decryption if an input JWE cannot be
    *    decrypted due a problem other than local configuration
    * @throws JWTSignatureException if an input JWE+JWS or JWE fails signature
@@ -108,7 +126,8 @@ public interface JWTValidator {
    * @throws JWTConfigurationException if the validation request fails due to
    *    a local configuration problem; e.g. JCA NoSuchAlgorithmException
    */
-  Claims validate(String encoded) throws JWTEncryptionException,
-      JWTSignatureException, JWTValidationException, JWTConfigurationException;
+  Claims validate(String encoded) throws JWTParseException,
+      JWTEncryptionException, JWTSignatureException, JWTValidationException,
+      JWTConfigurationException;
 
 }

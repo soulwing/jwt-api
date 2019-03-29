@@ -126,6 +126,39 @@ public interface JWS {
   }
 
   /**
+   * A JWS JOSE header.
+   */
+  interface Header extends JoseHeader {
+
+    /**
+     * Gets the value of the algorithm header ({@code alg})
+     * @return header value or {@code null} if not present
+     */
+    String getAlgorithm();
+
+  }
+
+  /**
+   * A factory that produces JWS operator instances.
+   * <p>
+   * An instance of this type can be used to produce an operator based on the
+   * header specified for a JWT.
+   */
+  interface Factory {
+
+    /**
+     * Gets an operator appropriate for use with a signed JWT with the
+     * specified header claims.
+     * @param header JOSE header
+     * @return operator
+     * @throws JWTConfigurationException if an unexpected error occurs in
+     *    producing an operator
+     */
+    JWS getOperator(Header header) throws JWTConfigurationException;
+
+  }
+
+  /**
    * A signature verification result.
    */
   interface Result {
@@ -144,7 +177,6 @@ public interface JWS {
     PublicKeyInfo getPublicKeyInfo();
 
   }
-
 
   /**
    * Creates a signed Compact Serialization of a JWS using the given payload.

@@ -28,6 +28,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
+import org.jose4j.jwx.Headers;
 import org.junit.Test;
 import org.soulwing.jwt.api.Assertions;
 import org.soulwing.jwt.api.Claims;
@@ -35,6 +36,7 @@ import org.soulwing.jwt.api.JWE;
 import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.JWTGenerator;
 import org.soulwing.jwt.api.JWTValidator;
+import org.soulwing.jwt.api.JoseHeader;
 import org.soulwing.jwt.api.KeyUtil;
 import org.soulwing.jwt.api.SingletonKeyProvider;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
@@ -80,6 +82,13 @@ public class Jose4jProviderTest {
     assertThat(actual.expiresAt().orElse(null), is(equalTo(EXPIRES_AT)));
   }
 
+  @Test
+  public void testHeader() throws Exception {
+    final Headers headers = new Headers();
+    headers.setFullHeaderAsJsonString("{\"typ\":\"TYPE\"}");
+    final JoseHeader header = provider.header(headers.getEncodedHeader());
+    assertThat(header.getType(), is(equalTo("TYPE")));
+  }
 
   @Test
   public void testAssertions() throws Exception {
@@ -167,8 +176,8 @@ public class Jose4jProviderTest {
         .build();
 
     final JWTValidator validator = provider.validator()
-        .decryption(encryptionOperator)
-        .signatureValidation(signatureOperator)
+        .encryptionOperator(encryptionOperator)
+        .signatureOperator(signatureOperator)
         .claimsAssertions(assertions)
         .build();
 
@@ -193,8 +202,8 @@ public class Jose4jProviderTest {
         .build();
 
     final JWTValidator validator = provider.validator()
-        .decryption(decryptionOperator)                  // different operator
-        .signatureValidation(signatureOperator)
+        .encryptionOperator(decryptionOperator)                  // different operator
+        .signatureOperator(signatureOperator)
         .claimsAssertions(assertions)
         .build();
 
@@ -220,8 +229,8 @@ public class Jose4jProviderTest {
         .build();
 
     final JWTValidator validator = provider.validator()
-        .decryption(encryptionOperator)
-        .signatureValidation(verifyOperator)              // different operator
+        .encryptionOperator(encryptionOperator)
+        .signatureOperator(verifyOperator)              // different operator
         .claimsAssertions(assertions)
         .build();
 
@@ -248,8 +257,8 @@ public class Jose4jProviderTest {
         .build();
 
     final JWTValidator validator = provider.validator()
-        .decryption(encryptionOperator)
-        .signatureValidation(signatureOperator)
+        .encryptionOperator(encryptionOperator)
+        .signatureOperator(signatureOperator)
         .claimsAssertions(assertions)
         .build();
 

@@ -18,14 +18,12 @@
  */
 package org.soulwing.jwt.api.jose4j;
 
-import java.io.StringWriter;
-import javax.json.Json;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
 import org.hamcrest.Matchers;
 import org.jmock.Expectations;
-import org.jmock.Sequence;
 import org.jmock.auto.Mock;
 import org.jmock.integration.junit4.JUnitRuleMockery;
 import org.junit.Rule;
@@ -35,6 +33,7 @@ import org.soulwing.jwt.api.Assertions;
 import org.soulwing.jwt.api.Claims;
 import org.soulwing.jwt.api.JWE;
 import org.soulwing.jwt.api.JWS;
+import org.soulwing.jwt.api.JWTProvider;
 import org.soulwing.jwt.api.JWTValidator;
 import org.soulwing.jwt.api.MockClock;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
@@ -51,16 +50,7 @@ public class Jose4jValidatorTest {
 
   private static final String ENCODED = "encoded";
   private static final String DECRYPTED = "decrypted";
-  private static final String ID = "id";
-
-  private static final String PAYLOAD;
-
-  static {
-    final StringWriter writer = new StringWriter();
-    Json.createWriter(writer).writeObject(Json.createObjectBuilder()
-        .add(Claims.JTI, ID).build());
-    PAYLOAD = writer.toString();
-  }
+  private static final String PAYLOAD = "payload";
 
   @Rule
   public final JUnitRuleMockery context = new JUnitRuleMockery();
@@ -72,24 +62,42 @@ public class Jose4jValidatorTest {
   private JWE encryptionOperator;
 
   @Mock
+  private JWE.Factory encryptionOperatorFactory;
+
+  @Mock
   private JWS signatureOperator;
 
   @Mock
+  private JWS.Factory signatureOperatorFactory;
+
+  @Mock
   private Assertions assertions;
+
+  @Mock
+  private JWTProvider provider;
+
+  @Mock
+  private JWE.Header jweHeader;
+
+  @Mock
+  private JWS.Header jwsHeader;
+
+  @Mock
+  private Claims payload;
 
   private MockClock clock = new MockClock();
 
   @Test(expected = JWTConfigurationException.class)
   public void testBuildWhenNothingConfigured() throws Exception {
-    Jose4jValidator.builder().build();
+    Jose4jValidator.builder(provider).build();
   }
 
   @Test
   public void testBuildWhenNoSignatureOperator() throws Exception {
     expectedException.expect(JWTConfigurationException.class);
     expectedException.expectMessage("signature");
-    Jose4jValidator.builder()
-        .decryption(encryptionOperator)
+    Jose4jValidator.builder(provider)
+        .encryptionOperator(encryptionOperator)
         .claimsAssertions(assertions)
         .clock(clock)
         .build();
@@ -99,18 +107,44 @@ public class Jose4jValidatorTest {
   public void testBuildWhenNoAssertions() throws Exception {
     expectedException.expect(JWTConfigurationException.class);
     expectedException.expectMessage("assertions");
-    Jose4jValidator.builder()
-        .decryption(encryptionOperator)
-        .signatureValidation(signatureOperator)
+    Jose4jValidator.builder(provider)
+        .encryptionOperator(encryptionOperator)
+        .signatureOperator(signatureOperator)
+        .clock(clock)
+        .build();
+  }
+
+  @Test
+  public void testBuildWhenEncryptionOperatorAndFactory() throws Exception {
+    expectedException.expect(JWTConfigurationException.class);
+    expectedException.expectMessage("encryption operator or operator factory");
+    Jose4jValidator.builder(provider)
+        .encryptionOperator(encryptionOperator)
+        .encryptionOperatorFactory(encryptionOperatorFactory)
+        .signatureOperator(signatureOperator)
+        .claimsAssertions(assertions)
+        .clock(clock)
+        .build();
+  }
+
+  @Test
+  public void testBuildWhenSignatureOperatorAndFactory() throws Exception {
+    expectedException.expect(JWTConfigurationException.class);
+    expectedException.expectMessage("signature operator or operator factory");
+    Jose4jValidator.builder(provider)
+        .encryptionOperator(encryptionOperator)
+        .signatureOperator(signatureOperator)
+        .signatureOperatorFactory(signatureOperatorFactory)
+        .claimsAssertions(assertions)
         .clock(clock)
         .build();
   }
 
   @Test
   public void testUseDefaultClock() throws Exception {
-    Jose4jValidator.builder()
-        .decryption(encryptionOperator)
-        .signatureValidation(signatureOperator)
+    Jose4jValidator.builder(provider)
+        .encryptionOperator(encryptionOperator)
+        .signatureOperator(signatureOperator)
         .claimsAssertions(assertions)
         .clock(null)
         .build();
@@ -118,9 +152,8 @@ public class Jose4jValidatorTest {
 
   @Test
   public void testUseDefaultEncryptionOperator() throws Exception {
-    Jose4jValidator.builder()
-        .decryption(null)
-        .signatureValidation(signatureOperator)
+    Jose4jValidator.builder(provider)
+        .signatureOperator(signatureOperator)
         .claimsAssertions(assertions)
         .clock(clock)
         .build();
@@ -128,112 +161,88 @@ public class Jose4jValidatorTest {
 
   @Test
   public void testValidateSuccess() throws Exception {
-    final Sequence sequence = context.sequence("validateSequence");
-    context.checking(new Expectations() {
-      {
-        oneOf(encryptionOperator).decrypt(ENCODED);
-        inSequence(sequence);
-        will(returnValue(DECRYPTED));
-        oneOf(signatureOperator).verify(DECRYPTED);
-        inSequence(sequence);
-        will(returnValue(new Jose4jVerificationResult(PAYLOAD, null)));
-        oneOf(assertions).test(with(claimsWithJti(ID)),
-            with(Matchers.<Assertions.Context>hasProperty("clock",
-                Matchers.is(Matchers.sameInstance(clock)))));
-        inSequence(sequence);
-        will(returnValue(true));
-      }
-    });
-
-    newValidator().validate(ENCODED);
+    context.checking(decryptExpectations(null));
+    context.checking(verifySignatureExpectations(null));
+    context.checking(payloadAssertionExpectations(true));
+    assertThat(newValidator().validate(ENCODED), is(sameInstance(payload)));
   }
 
   @Test
   public void testValidateWhenAssertionFails() throws Exception {
-    final Sequence sequence = context.sequence("validateSequence");
-    context.checking(new Expectations() {
-      {
-        oneOf(encryptionOperator).decrypt(ENCODED);
-        inSequence(sequence);
-        will(returnValue(DECRYPTED));
-        oneOf(signatureOperator).verify(DECRYPTED);
-        inSequence(sequence);
-        will(returnValue(new Jose4jVerificationResult(PAYLOAD, null)));
-        oneOf(assertions).test(with(claimsWithJti(ID)),
-            with(Matchers.<Assertions.Context>hasProperty("clock",
-                Matchers.is(Matchers.sameInstance(clock)))));
-        inSequence(sequence);
-        will(returnValue(false));
-      }
-    });
-
+    context.checking(decryptExpectations(null));
+    context.checking(verifySignatureExpectations(null));
+    context.checking(payloadAssertionExpectations(false));
     expectedException.expect(JWTValidationException.class);
     expectedException.expectMessage("assertions");
     newValidator().validate(ENCODED);
   }
 
-  @Test(expected = JWTSignatureException.class)
+  @Test
   public void testValidateWhenSignatureValidationFails() throws Exception {
-    final Sequence sequence = context.sequence("validateSequence");
-    context.checking(new Expectations() {
-      {
-        oneOf(encryptionOperator).decrypt(ENCODED);
-        inSequence(sequence);
-        will(returnValue(DECRYPTED));
-        oneOf(signatureOperator).verify(DECRYPTED);
-        inSequence(sequence);
-        will(throwException(new JWTSignatureException("invalid signature")));
-      }
-    });
-
+    context.checking(decryptExpectations(null));
+    final JWTSignatureException ex = new JWTSignatureException("error");
+    context.checking(verifySignatureExpectations(ex));
+    expectedException.expect(is(sameInstance(ex)));
     newValidator().validate(ENCODED);
   }
 
-  @Test(expected = JWTEncryptionException.class)
+  @Test
   public void testValidateWhenDecryptionFails() throws Exception {
-    final Sequence sequence = context.sequence("validateSequence");
-    context.checking(new Expectations() {
-      {
-        oneOf(encryptionOperator).decrypt(ENCODED);
-        inSequence(sequence);
-        will(throwException(new JWTEncryptionException("invalid decryption")));
-      }
-    });
-
+    final JWTEncryptionException ex = new JWTEncryptionException("error");
+    context.checking(decryptExpectations(ex));
+    expectedException.expect(is(sameInstance(ex)));
     newValidator().validate(ENCODED);
+  }
+
+  private Expectations decryptExpectations(JWTEncryptionException ex)
+      throws Exception {
+    return new Expectations() {
+      {
+        oneOf(provider).header(ENCODED);
+        will(returnValue(jweHeader));
+        oneOf(encryptionOperatorFactory).getOperator(jweHeader);
+        will(returnValue(encryptionOperator));
+        oneOf(encryptionOperator).decrypt(ENCODED);
+        will(ex != null ? throwException(ex) : returnValue(DECRYPTED));
+      }
+    };
+  }
+
+  private Expectations verifySignatureExpectations(JWTSignatureException ex)
+      throws Exception {
+    return new Expectations() {
+      {
+        oneOf(provider).header(DECRYPTED);
+        will(returnValue(jwsHeader));
+        oneOf(signatureOperatorFactory).getOperator(jwsHeader);
+        will(returnValue(signatureOperator));
+        oneOf(signatureOperator).verify(DECRYPTED);
+        will(ex != null ? throwException(ex)
+            : returnValue(new Jose4jVerificationResult(PAYLOAD, null)));
+      }
+    };
+  }
+
+  private Expectations payloadAssertionExpectations(boolean outcome) throws Exception {
+    return new Expectations() {
+      {
+        oneOf(provider).parse(PAYLOAD);
+        will(returnValue(payload));
+        oneOf(assertions).test(with(payload),
+            with(Matchers.<Assertions.Context>hasProperty("clock",
+                is(sameInstance(clock)))));
+        will(returnValue(outcome));
+      }
+    };
   }
 
   private JWTValidator newValidator() throws JWTConfigurationException {
-    return Jose4jValidator.builder()
-          .decryption(encryptionOperator)
-          .signatureValidation(signatureOperator)
+    return Jose4jValidator.builder(provider)
+          .encryptionOperatorFactory(encryptionOperatorFactory)
+          .signatureOperatorFactory(signatureOperatorFactory)
           .claimsAssertions(assertions)
           .clock(clock)
           .build();
   }
 
-  private static ClaimsJTIMatcher claimsWithJti(String expected) {
-    return new ClaimsJTIMatcher(expected);
-  }
-
-  private static class ClaimsJTIMatcher extends BaseMatcher<Claims> {
-
-    private final String expected;
-
-    public ClaimsJTIMatcher(String expected) {
-      this.expected = expected;
-    }
-
-    @Override
-    public boolean matches(Object o) {
-      return expected.equals(((Claims) o).id().orElse(null));
-    }
-
-    @Override
-    public void describeTo(Description description) {
-      description.appendText("claims with jti=`")
-          .appendText(expected)
-          .appendText("`");
-    }
-  }
 }

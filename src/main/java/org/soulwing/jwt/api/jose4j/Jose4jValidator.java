@@ -20,15 +20,16 @@ package org.soulwing.jwt.api.jose4j;
 
 import java.time.Clock;
 
-import org.jose4j.jwt.JwtClaims;
-import org.jose4j.jwt.consumer.InvalidJwtException;
 import org.soulwing.jwt.api.Assertions;
 import org.soulwing.jwt.api.Claims;
 import org.soulwing.jwt.api.JWE;
 import org.soulwing.jwt.api.JWS;
+import org.soulwing.jwt.api.JWTProvider;
 import org.soulwing.jwt.api.JWTValidator;
+import org.soulwing.jwt.api.JoseHeader;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
+import org.soulwing.jwt.api.exceptions.JWTParseException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
 import org.soulwing.jwt.api.exceptions.JWTValidationException;
 
@@ -38,21 +39,28 @@ import org.soulwing.jwt.api.exceptions.JWTValidationException;
  */
 class Jose4jValidator implements JWTValidator {
 
+  private JWTProvider provider;
+
   private Clock clock = Clock.systemUTC();
-  private JWE encryptionOperator = NoOpEncryptionOperator.INSTANCE;
+
+  private JWE encryptionOperator;
+  private JWE.Factory encryptionOperatorFactory;
 
   private JWS signatureOperator;
+  private JWS.Factory signatureOperatorFactory;
+
   private Assertions assertions;
 
   static class Builder implements JWTValidator.Builder {
 
     private final Jose4jValidator validator = new Jose4jValidator();
 
-    private Builder() {
+    private Builder(JWTProvider provider) {
+      validator.provider = provider;
     }
 
     @Override
-    public JWTValidator.Builder decryption(JWE operator) {
+    public JWTValidator.Builder encryptionOperator(JWE operator) {
       if (operator == null) {
         operator = NoOpEncryptionOperator.INSTANCE;
       }
@@ -61,8 +69,22 @@ class Jose4jValidator implements JWTValidator {
     }
 
     @Override
-    public JWTValidator.Builder signatureValidation(JWS operator) {
+    public JWTValidator.Builder encryptionOperatorFactory(
+        JWE.Factory operatorFactory) {
+      validator.encryptionOperatorFactory = operatorFactory;
+      return this;
+    }
+
+    @Override
+    public JWTValidator.Builder signatureOperator(JWS operator) {
       validator.signatureOperator = operator;
+      return this;
+    }
+
+    @Override
+    public JWTValidator.Builder signatureOperatorFactory(
+        JWS.Factory operatorFactory) {
+      validator.signatureOperatorFactory = operatorFactory;
       return this;
     }
 
@@ -86,14 +108,27 @@ class Jose4jValidator implements JWTValidator {
       if (validator.clock == null) {
         throw new JWTConfigurationException("clock is required");
       }
-      if (validator.encryptionOperator == null) {
-        throw new JWTConfigurationException("encryption operator is required");
+      if (validator.encryptionOperator == null
+          && validator.encryptionOperatorFactory == null) {
+        validator.encryptionOperator = NoOpEncryptionOperator.INSTANCE;
       }
-      if (validator.signatureOperator == null) {
-        throw new JWTConfigurationException("signature operator is required");
+      if (validator.signatureOperator == null
+          && validator.signatureOperatorFactory == null) {
+        throw new JWTConfigurationException(
+            "signature operator or factory is required");
       }
       if (validator.assertions == null) {
         throw new JWTConfigurationException("assertions are required");
+      }
+      if (validator.encryptionOperator != null
+          && validator.encryptionOperatorFactory != null) {
+        throw new JWTConfigurationException("specify an encryption "
+            + "operator or operator factory, not both");
+      }
+      if (validator.signatureOperator != null
+          && validator.signatureOperatorFactory != null) {
+        throw new JWTConfigurationException("specify a signature "
+            + "operator or operator factory, not both");
       }
       return validator;
     }
@@ -101,20 +136,19 @@ class Jose4jValidator implements JWTValidator {
 
   /**
    * Gets a builder that will create a new instance.
+   * @param provider the provider that requested a builder
    * @return builder
    */
-  public static Builder builder() {
-    return new Builder();
+  public static Builder builder(JWTProvider provider) {
+    return new Builder(provider);
   }
 
   @Override
-  public Claims validate(String encoded) throws JWTEncryptionException,
-      JWTSignatureException, JWTValidationException {
+  public Claims validate(String encoded) throws JWTParseException,
+      JWTEncryptionException, JWTSignatureException, JWTValidationException {
     try {
-      final JWS.Result result = signatureOperator.verify(
-          encryptionOperator.decrypt(encoded));
-
-      final Claims claims = new Jose4jClaims(JwtClaims.parse(result.getPayload()));
+      final JWS.Result result = verify(decrypt(encoded));
+      final Claims claims = provider.parse(result.getPayload());
 
       if (!assertions.test(claims, new Jose4jAssertionContext(clock,
           result.getPublicKeyInfo()))) {
@@ -124,9 +158,31 @@ class Jose4jValidator implements JWTValidator {
 
       return claims;
     }
-    catch (InvalidJwtException ex) {
-      throw new JWTValidationException("invalid claims representation", ex);
+    catch (JWTConfigurationException ex) {
+      throw new JWTValidationException(ex.getMessage(), ex);
     }
+  }
+
+  private String decrypt(String encoded)
+      throws JWTEncryptionException, JWTConfigurationException, JWTParseException {
+    return getEncryptionOperator(provider.header(encoded)).decrypt(encoded);
+  }
+
+  private JWE getEncryptionOperator(JoseHeader header)
+      throws JWTConfigurationException {
+    if (encryptionOperator != null) return encryptionOperator;
+    return encryptionOperatorFactory.getOperator((JWE.Header) header);
+  }
+
+  private JWS.Result verify(String encoded)
+      throws JWTSignatureException, JWTConfigurationException, JWTParseException {
+    return getSignatureOperator(provider.header(encoded)).verify(encoded);
+  }
+
+  private JWS getSignatureOperator(JoseHeader header)
+      throws JWTConfigurationException {
+    if (signatureOperator != null) return signatureOperator;
+    return signatureOperatorFactory.getOperator((JWS.Header) header);
   }
 
 }

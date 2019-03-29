@@ -44,6 +44,14 @@ public interface JWTProvider {
   Claims parse(String json) throws JWTParseException;
 
   /**
+   * Parses the JOSE header from a JWT in compacted encoding form.
+   * @param encoded JWT in compact encoding
+   * @return header claims
+   * @throws JWTParseException if the header cannot be parsed successfully
+   */
+  JoseHeader header(String encoded) throws JWTParseException;
+
+  /**
    * Gets a builder that will produce an {@link Assertions} instance.
    * @return assertions builder
    */

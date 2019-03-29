@@ -26,8 +26,16 @@ package org.soulwing.jwt.api.exceptions;
  */
 public class JWTParseException extends JWTException {
 
+  public JWTParseException(String message) {
+    this(message, null);
+  }
+
   public JWTParseException(Throwable cause) {
-    super(cause);
+    this(null, cause);
+  }
+
+  public JWTParseException(String message, Throwable cause) {
+    super(message, cause);
   }
 
 }
