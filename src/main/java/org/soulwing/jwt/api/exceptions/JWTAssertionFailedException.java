@@ -18,6 +18,10 @@
  */
 package org.soulwing.jwt.api.exceptions;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.soulwing.jwt.api.Assertions;
 
 /**
@@ -39,6 +43,24 @@ public class JWTAssertionFailedException extends RuntimeException {
 
   public JWTAssertionFailedException(Throwable cause) {
     super(cause);
+  }
+
+  static String join(Object value, Object... values) {
+    final StringBuilder sb = new StringBuilder();
+    sb.append("`").append(value).append("`");
+    if (values != null && values.length > 0) {
+      sb.append(", ");
+      sb.append(Arrays.stream(values)
+          .map(s -> "`" + s + "`")
+          .collect(Collectors.joining(", ")));
+    }
+    return sb.toString();
+  }
+
+  static String join(List<?> values) {
+    return values.stream().map(Object::toString)
+        .map(s -> "`" + s + "`")
+        .collect(Collectors.joining(", "));
   }
 
 }

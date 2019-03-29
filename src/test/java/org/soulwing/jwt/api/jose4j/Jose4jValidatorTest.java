@@ -36,6 +36,7 @@ import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.JWTProvider;
 import org.soulwing.jwt.api.JWTValidator;
 import org.soulwing.jwt.api.MockClock;
+import org.soulwing.jwt.api.exceptions.JWTAssertionFailedException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
 import org.soulwing.jwt.api.exceptions.JWTSignatureException;
@@ -163,17 +164,19 @@ public class Jose4jValidatorTest {
   public void testValidateSuccess() throws Exception {
     context.checking(decryptExpectations(null));
     context.checking(verifySignatureExpectations(null));
-    context.checking(payloadAssertionExpectations(true));
+    context.checking(payloadAssertionExpectations(null));
     assertThat(newValidator().validate(ENCODED), is(sameInstance(payload)));
   }
 
   @Test
   public void testValidateWhenAssertionFails() throws Exception {
+    final JWTAssertionFailedException ex =
+        new JWTAssertionFailedException("validation error");
     context.checking(decryptExpectations(null));
     context.checking(verifySignatureExpectations(null));
-    context.checking(payloadAssertionExpectations(false));
+    context.checking(payloadAssertionExpectations(ex));
     expectedException.expect(JWTValidationException.class);
-    expectedException.expectMessage("assertions");
+    expectedException.expectCause(is(sameInstance(ex)));
     newValidator().validate(ENCODED);
   }
 
@@ -223,15 +226,16 @@ public class Jose4jValidatorTest {
     };
   }
 
-  private Expectations payloadAssertionExpectations(boolean outcome) throws Exception {
+  private Expectations payloadAssertionExpectations(
+      JWTAssertionFailedException ex) throws Exception {
     return new Expectations() {
       {
         oneOf(provider).parse(PAYLOAD);
         will(returnValue(payload));
-        oneOf(assertions).test(with(payload),
+        oneOf(assertions).assertSatisfied(with(payload),
             with(Matchers.<Assertions.Context>hasProperty("clock",
                 is(sameInstance(clock)))));
-        will(returnValue(outcome));
+        will(ex == null ? returnValue(null) : throwException(ex));
       }
     };
   }

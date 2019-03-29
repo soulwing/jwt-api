@@ -18,24 +18,31 @@
  */
 package org.soulwing.jwt.api;
 
-import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.sameInstance;
 
 import java.io.ByteArrayInputStream;
-import java.io.OutputStreamWriter;
 import java.security.KeyPair;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
-import org.bouncycastle.util.io.pem.PemObject;
-import org.bouncycastle.util.io.pem.PemWriter;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
+import org.soulwing.jwt.api.exceptions.CertificateSubjectNameAssertionException;
+import org.soulwing.jwt.api.exceptions.ContainsAssertionException;
+import org.soulwing.jwt.api.exceptions.EqualsAssertionException;
+import org.soulwing.jwt.api.exceptions.ExpirationAssertionException;
+import org.soulwing.jwt.api.exceptions.IdAssertionException;
+import org.soulwing.jwt.api.exceptions.InstantAssertionException;
+import org.soulwing.jwt.api.exceptions.JWTAssertionFailedException;
+import org.soulwing.jwt.api.exceptions.LifetimeAssertionException;
+import org.soulwing.jwt.api.exceptions.TypeMismatchAssertionException;
+import org.soulwing.jwt.api.exceptions.UndefinedValueAssertionException;
 
 /**
  * Units tests for {@link BiPredicateAssertions}.
@@ -59,535 +66,638 @@ public class BiPredicateAssertionsTest {
 
   private static KeyPair keyPair = KeyUtil.newRsaKeyPair();
 
+  @Rule
+  public final ExpectedException expectedException = ExpectedException.none();
+
   private MockClock clock = new MockClock();
   private MockClaims claims = new MockClaims();
   private MockContext context = new MockContext(clock, null);
 
   @Test
-  public void testRequireIdWhenNonEmptyString() throws Exception {
+  public void testRequireIdWhenNonEmptyString() {
     claims.put(Claims.JTI, ID);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, context), is(true));
+        .build().assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireIdWhenEmptyString() throws Exception {
+  public void testRequireIdWhenEmptyString() {
     claims.put(Claims.JTI, "");
-    assertThat(BiPredicateAssertions.builder()
+    expectedException.expect(IdAssertionException.class);
+    expectedException.expectMessage(Claims.JTI);
+    expectedException.expectMessage("required, but not present");
+    BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, context), is(false));
+        .build().assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireIdWhenNull() throws Exception {
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireIdWhenNull() {
     claims.put(Claims.JTI, null);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, context), is(false));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireIdWhenNotString() throws Exception {
+  @Test(expected = TypeMismatchAssertionException.class)
+  public void testRequireIdWhenNotString() {
     claims.put(Claims.JTI, 42);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireId()
-        .build().test(claims, context), is(false));
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireIdWhenNotPresent() {
+   BiPredicateAssertions.builder()
+        .requireId()
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireIdWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireId()
-        .build().test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireIdSatisfies() throws Exception {
+  public void testRequireIdSatisfies() {
     claims.put(Claims.JTI, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireIdSatisfies((v) -> v.equals(STRING_VALUE))
+    BiPredicateAssertions.builder()
+        .requireIdSatisfies(v -> v.equals(STRING_VALUE),
+            v -> new EqualsAssertionException(Claims.JTI, STRING_VALUE, STRING_VALUE))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireLifetimeNotExceededWhenClockEqualsLifetimeMinusOne() throws Exception {
+  public void testRequireIdSatisfiesWhenNotSatisfied() {
+    claims.put(Claims.JTI, "other" + STRING_VALUE);
+    final EqualsAssertionException ex =
+        new EqualsAssertionException(Claims.JTI, STRING_VALUE, STRING_VALUE);
+
+    expectedException.expect(is(sameInstance(ex)));
+    BiPredicateAssertions.builder()
+        .requireIdSatisfies(v -> v.equals(STRING_VALUE), v -> ex)
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test
+  public void testRequireLifetimeNotExceededWhenClockEqualsLifetimeMinusOne() {
     claims.put(Claims.IAT, ISSUED_AT.getEpochSecond());
-    assertThat(BiPredicateAssertions.builder()
+    final MockContext ctx = new MockContext(
+        new MockClock(ISSUED_AT.plus(LIFETIME).minusSeconds(1)), null);
+
+    BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, new MockContext(new MockClock(ISSUED_AT.plus(LIFETIME).minusSeconds(1)), null)), is(true));
+        .assertSatisfied(claims, ctx);
   }
 
   @Test
-  public void testRequireLifetimeNotExceededWhenClockEqualsLifetime() throws Exception {
+  public void testRequireLifetimeNotExceededWhenClockEqualsLifetime() {
     claims.put(Claims.IAT, ISSUED_AT.getEpochSecond());
-    assertThat(BiPredicateAssertions.builder()
+    final MockContext ctx = new MockContext(
+        new MockClock(ISSUED_AT.plus(LIFETIME)), null);
+
+    expectedException.expect(LifetimeAssertionException.class);
+    expectedException.expectMessage("is before current time");
+    BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, new MockContext(new MockClock(ISSUED_AT.plus(LIFETIME)), null)), is(false));
+        .assertSatisfied(claims, ctx);
   }
 
-  @Test
-  public void testRequireLifetimeNotExceededWhenTypeMismatch() throws Exception {
+  @Test(expected = TypeMismatchAssertionException.class)
+  public void testRequireLifetimeNotExceededWhenTypeMismatch() {
     claims.put(Claims.IAT, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireLifetimeNotExceeded(LIFETIME)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireLifetimeNotExceededWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireLifetimeNotExceeded(LIFETIME)
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireLifetimeNotExceededWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireLifetimeNotExceeded(LIFETIME)
-        .build()
-        .test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireIssuedAtSatisfies() throws Exception {
+  public void testRequireIssuedAtSatisfies() {
     claims.put(Claims.IAT, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireIssuedAtSatisfies((t, clock) ->
-            t.equals(Instant.ofEpochSecond(NUMBER_VALUE.longValue())))
+    final Instant other = Instant.ofEpochSecond(NUMBER_VALUE.longValue());
+    BiPredicateAssertions.builder()
+        .requireIssuedAtSatisfies(
+            (t, clock) -> t.equals(other),
+            (t, clock) -> new InstantAssertionException(clock.instant(), t,
+                (now, then) -> "error message"))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireNotExpiredWhenClockEqualsExpiresMinusOne() throws Exception {
+  public void testRequireNotExpiredWhenClockEqualsExpiresMinusOne() {
     claims.put(Claims.EXP, EXPIRES_AT.getEpochSecond());
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireNotExpired(Duration.ZERO)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireNotExpiredWhenClockEqualsExpires() throws Exception {
+  public void testRequireNotExpiredWhenClockEqualsExpires() {
     claims.put(Claims.EXP, EXPIRES_AT.getEpochSecond());
-    assertThat(BiPredicateAssertions.builder()
+    final MockContext ctx = new MockContext(new MockClock(EXPIRES_AT), null);
+    expectedException.expect(ExpirationAssertionException.class);
+    expectedException.expectMessage("before current time");
+    BiPredicateAssertions.builder()
         .requireNotExpired(Duration.ZERO)
         .build()
-        .test(claims, new MockContext(new MockClock(EXPIRES_AT), null)), is(false));
+        .assertSatisfied(claims, ctx);
   }
 
   @Test
-  public void testRequireNotExpiredWithToleranceWhenClockEqualsExpires()
-       throws Exception {
+  public void testRequireNotExpiredWithToleranceWhenClockEqualsExpires() {
     claims.put(Claims.EXP, EXPIRES_AT.getEpochSecond());
-    assertThat(BiPredicateAssertions.builder()
+    final MockContext ctx = new MockContext(new MockClock(EXPIRES_AT), null);
+    BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, new MockContext(new MockClock(EXPIRES_AT), null)), is(true));
+        .assertSatisfied(claims, ctx);
   }
 
   @Test
-  public void testRequireNotExpiredWithToleranceWhenClockEqualsExpiresPlusTolerance()
-      throws Exception {
+  public void testRequireNotExpiredWithToleranceWhenClockEqualsExpiresPlusTolerance() {
     claims.put(Claims.EXP, EXPIRES_AT.getEpochSecond());
-    assertThat(BiPredicateAssertions.builder()
+    final MockContext ctx = new MockContext(
+        new MockClock(EXPIRES_AT.plus(TOLERANCE)), null);
+    expectedException.expect(ExpirationAssertionException.class);
+    expectedException.expectMessage("before current time");
+    BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, new MockContext(new MockClock(EXPIRES_AT.plus(TOLERANCE)), null)), is(false));
+        .assertSatisfied(claims, ctx);
   }
 
-  @Test
-  public void testRequireNotExpiredWhenTypeMismatch() throws Exception {
+  @Test(expected = TypeMismatchAssertionException.class)
+  public void testRequireNotExpiredWhenTypeMismatch() {
     claims.put(Claims.EXP, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireNotExpired(TOLERANCE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireNotExpiredWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireNotExpired(TOLERANCE)
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireNotExpiredWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireNotExpired(TOLERANCE)
-        .build()
-        .test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireExpirationSatisfies() throws Exception {
+  public void testRequireExpirationSatisfies() {
     claims.put(Claims.EXP, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireExpirationSatisfies((t, clock) ->
-            t.equals(Instant.ofEpochSecond(NUMBER_VALUE.longValue())))
+    final Instant expiresAt = Instant.ofEpochSecond(NUMBER_VALUE.longValue());
+    BiPredicateAssertions.builder()
+        .requireExpirationSatisfies(
+            (t, clock) -> t.equals(expiresAt),
+            (t, clock) -> new ExpirationAssertionException(
+                clock.instant(), expiresAt, Duration.ZERO))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireIssuerMatches() throws Exception {
+  public void testRequireExpirationSatisfiesWhenNotSatisfied() {
+    claims.put(Claims.EXP, NUMBER_VALUE);
+    final Instant expiresAt = Instant.ofEpochSecond(NUMBER_VALUE.longValue());
+    final ExpirationAssertionException ex =
+        new ExpirationAssertionException(clock.instant(), expiresAt, Duration.ZERO);
+
+    expectedException.expect(is(sameInstance(ex)));
+    BiPredicateAssertions.builder()
+        .requireExpirationSatisfies(
+            (t, clock) -> !t.equals(expiresAt),
+            (t, clock) -> ex)
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test
+  public void testRequireIssuerMatches() {
     claims.put(Claims.ISS, ISSUER);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireIssuer(ISSUER)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireIssuerMatchesOneOf() throws Exception {
+  public void testRequireIssuerMatchesOneOf() {
     claims.put(Claims.ISS, ISSUER);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireIssuer("other" + ISSUER, ISSUER)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireIssuerWhenNoMatch() throws Exception {
+  @Test(expected = EqualsAssertionException.class)
+  public void testRequireIssuerWhenNoMatch() {
     claims.put(Claims.ISS, ISSUER);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireIssuer("other1" + ISSUER, "other2" + ISSUER)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireIssuerWhenNotString() throws Exception {
+  @Test(expected = EqualsAssertionException.class)
+  public void testRequireIssuerWhenNotString() {
     claims.put(Claims.ISS, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireIssuer(ISSUER)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireIssuerWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireIssuer(ISSUER)
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireIssuerWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireIssuer(ISSUER)
-        .build()
-        .test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireIssuerSatisfies() throws Exception {
+  public void testRequireIssuerSatisfies() {
     claims.put(Claims.ISS, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireIssuerSatisfies((v) -> v.equals(STRING_VALUE))
+    BiPredicateAssertions.builder()
+        .requireIssuerSatisfies(v -> v.equals(STRING_VALUE),
+            v -> new EqualsAssertionException(Claims.ISS, STRING_VALUE, STRING_VALUE))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireSubjectMatches() throws Exception {
+  public void testRequireIssuerSatisfiesWhenNotSatisfied() {
+    claims.put(Claims.ISS, STRING_VALUE);
+    final EqualsAssertionException ex =
+        new EqualsAssertionException(Claims.ISS, STRING_VALUE, STRING_VALUE);
+    expectedException.expect(is(sameInstance(ex)));
+    BiPredicateAssertions.builder()
+        .requireIssuerSatisfies(v -> !v.equals(STRING_VALUE), v -> ex)
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test
+  public void testRequireSubjectMatches() {
     claims.put(Claims.SUB, SUBJECT);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireSubject(SUBJECT)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireSubjectMatchesOneOf() throws Exception {
+  public void testRequireSubjectMatchesOneOf() {
     claims.put(Claims.SUB, SUBJECT);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireSubject("other" + SUBJECT, SUBJECT)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireSubjectWhenNoMatch() throws Exception {
+  @Test(expected = EqualsAssertionException.class)
+  public void testRequireSubjectWhenNoMatch() {
     claims.put(Claims.SUB, SUBJECT);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireSubject("other1" + SUBJECT, "other2" + SUBJECT)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireSubjectWhenNotString() throws Exception {
+  @Test(expected = EqualsAssertionException.class)
+  public void testRequireSubjectWhenNotString() {
     claims.put(Claims.SUB, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireSubject(SUBJECT)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireSubjectWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireSubject(SUBJECT)
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireSubjectWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireSubject(SUBJECT)
-        .build()
-        .test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireSubjectSatisfies() throws Exception {
+  public void testRequireSubjectSatisfies() {
     claims.put(Claims.SUB, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireSubjectSatisfies((v) -> v.equals(STRING_VALUE))
+    BiPredicateAssertions.builder()
+        .requireSubjectSatisfies(v -> v.equals(STRING_VALUE),
+            v -> new EqualsAssertionException(Claims.SUB, STRING_VALUE, STRING_VALUE))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireAudienceMatches() throws Exception {
+  public void testRequireSubjectSatisfiesWhenNotSatisfied() {
+    claims.put(Claims.SUB, STRING_VALUE);
+    final EqualsAssertionException ex =
+        new EqualsAssertionException(Claims.SUB, STRING_VALUE, STRING_VALUE);
+    expectedException.expect(is(sameInstance(ex)));
+    BiPredicateAssertions.builder()
+        .requireSubjectSatisfies(v -> !v.equals(STRING_VALUE), v -> ex)
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test
+  public void testRequireAudienceMatches() {
     claims.put(Claims.AUD, AUDIENCE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireAudience(AUDIENCE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireAudienceMatchesOneOf() throws Exception {
+  public void testRequireAudienceMatchesOneOf() {
     claims.put(Claims.AUD, AUDIENCE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireAudience("other" + AUDIENCE, AUDIENCE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireAudienceWhenNoMatch() throws Exception {
+  @Test(expected = ContainsAssertionException.class)
+  public void testRequireAudienceWhenNoMatch() {
     claims.put(Claims.AUD, AUDIENCE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireAudience("other1" + AUDIENCE, "other2" + AUDIENCE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireAudienceWhenNotString() throws Exception {
+  @Test(expected = ContainsAssertionException.class)
+  public void testRequireAudienceWhenNotString() {
     claims.put(Claims.AUD, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireAudience(AUDIENCE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireAudienceWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireAudience(AUDIENCE)
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireAudienceWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireAudience(AUDIENCE)
-        .build()
-        .test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireAudienceSatisfies() throws Exception {
+  public void testRequireAudienceSatisfies() {
     claims.put(Claims.AUD, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireAudienceSatisfies((l) -> l.contains(STRING_VALUE))
+    BiPredicateAssertions.builder()
+        .requireAudienceSatisfies((l) -> l.contains(STRING_VALUE),
+            l -> new ContainsAssertionException(Claims.AUD, l, STRING_VALUE))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireEqualsMatchesStringValue() throws Exception {
+  public void testRequireEqualsMatchesStringValue() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireEqualsMatchesNumberValue() throws Exception {
+  public void testRequireEqualsMatchesNumberValue() {
     claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
 
   @Test
-  public void testRequireEqualsMatchesOneOfStringValue() throws Exception {
+  public void testRequireEqualsMatchesOneOfStringValue() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, NUMBER_VALUE, STRING_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireEqualsMatchesOneOfNumberValue() throws Exception {
+  public void testRequireEqualsMatchesOneOfNumberValue() {
     claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE, NUMBER_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireEqualsWhenNoMatch() throws Exception {
+  @Test(expected = EqualsAssertionException.class)
+  public void testRequireEqualsWhenNoMatch() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireEqualsWhenTypeMismatch() throws Exception {
+  @Test(expected = EqualsAssertionException.class)
+  public void testRequireEqualsWhenTypeMismatch() {
     claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireEquals(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireEqualsWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireEquals(CLAIM_NAME, STRING_VALUE)
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireEqualsWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireEquals(CLAIM_NAME, STRING_VALUE)
-        .build()
-        .test(claims, context), is(false));
-  }
-
-  @Test
-  public void testRequireContainsMatchesString() throws Exception {
+  public void testRequireContainsMatchesString() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireContainsMatchesNumber() throws Exception {
+  public void testRequireContainsMatchesNumber() {
     claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireContainsMatchesList() throws Exception {
+  public void testRequireContainsMatchesList() {
     claims.put(CLAIM_NAME, NUMBER_VALUE, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireContainsMatchesOneOfValue() throws Exception {
+  public void testRequireContainsMatchesOneOfValue() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, NUMBER_VALUE, STRING_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireContainsMatchesOneOfList() throws Exception {
+  public void testRequireContainsMatchesOneOfList() {
     claims.put(CLAIM_NAME, STRING_VALUE, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, "other" + STRING_VALUE, STRING_VALUE)
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireContainsWhenNoMatchForValue() throws Exception {
+  @Test(expected = ContainsAssertionException.class)
+  public void testRequireContainsWhenNoMatchForValue() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, NUMBER_VALUE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireContainsWhenNoMatchForList() throws Exception {
+  @Test(expected = ContainsAssertionException.class)
+  public void testRequireContainsWhenNoMatchForList() {
     claims.put(CLAIM_NAME, STRING_VALUE, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, "other" + STRING_VALUE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireContainsWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireContainsWhenNotPresent() {
+    BiPredicateAssertions.builder()
         .requireContains(CLAIM_NAME, STRING_VALUE)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireSatisfiesWhenSatisfied() throws Exception {
+  public void testRequireSatisfiesWhenSatisfied() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireSatisfies(CLAIM_NAME, String.class,
-            (v) -> v.equals(STRING_VALUE))
+            v -> v.equals(STRING_VALUE),
+            v -> new JWTAssertionFailedException("not satisfied"))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireSatisfiesWhenNotSatisfied() throws Exception {
+  public void testRequireSatisfiesWhenNotSatisfied() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    final JWTAssertionFailedException ex =
+        new JWTAssertionFailedException("not satisfied");
+    expectedException.expect(is(sameInstance(ex)));
+    BiPredicateAssertions.builder()
         .requireSatisfies(CLAIM_NAME, String.class,
-            (v) -> v.equals("other" + STRING_VALUE))
+            v -> v.equals("other" + STRING_VALUE), v -> ex)
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireSatisfiesWhenTypeMismatch() throws Exception {
+  @Test(expected = TypeMismatchAssertionException.class)
+  public void testRequireSatisfiesWhenTypeMismatch() {
     claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireSatisfies(CLAIM_NAME, String.class,
-            (v) -> v.equals(STRING_VALUE))
+            v -> v.equals(STRING_VALUE),
+            v -> new JWTAssertionFailedException("type mismatch"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireSatisfiesWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireSatisfiesWhenNotPresent() {
+    BiPredicateAssertions.builder()
         .requireSatisfies(CLAIM_NAME, String.class,
-            (v) -> v.equals(STRING_VALUE))
+            v -> v.equals(STRING_VALUE),
+            v -> new JWTAssertionFailedException("not present"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireInstantSatisfiesWhenSatisfied() throws Exception {
+  public void testRequireInstantSatisfiesWhenSatisfied() {
     claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireInstantSatisfies(CLAIM_NAME, (v, clock) ->
-            v.equals(Instant.ofEpochSecond(NUMBER_VALUE.longValue())))
-        .build()
-        .test(claims, context), is(true));
-  }
-
-  @Test
-  public void testRequireInstantSatisfiesWhenNotSatisfied() throws Exception {
-    claims.put(CLAIM_NAME, NUMBER_VALUE);
-    assertThat(BiPredicateAssertions.builder()
+    final Instant instant = Instant.ofEpochSecond(NUMBER_VALUE.longValue());
+    BiPredicateAssertions.builder()
         .requireInstantSatisfies(CLAIM_NAME,
-            (v, clock) -> v.equals(Instant.EPOCH))
+            (t, clock) -> t.equals(instant),
+            (t, clock) -> new InstantAssertionException(
+                clock.instant(), t, (now, other) -> "now is not equal to other"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireInstantSatisfiesWhenTypeMismatch() throws Exception {
+  @Test(expected = InstantAssertionException.class)
+  public void testRequireInstantSatisfiesWhenNotSatisfied() {
+    claims.put(CLAIM_NAME, NUMBER_VALUE);
+    BiPredicateAssertions.builder()
+        .requireInstantSatisfies(CLAIM_NAME,
+            (t, clock) -> t.equals(Instant.EPOCH),
+            (t, clock) -> new InstantAssertionException(
+                Instant.EPOCH, t, (now, other) -> "now is not other"))
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = TypeMismatchAssertionException.class)
+  public void testRequireInstantSatisfiesWhenTypeMismatch() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requireInstantSatisfies(CLAIM_NAME, (v, clock) -> true)
+    BiPredicateAssertions.builder()
+        .requireInstantSatisfies(CLAIM_NAME,
+            (t, clock) -> true,
+            (t, clock) -> new InstantAssertionException(
+                Instant.EPOCH, t, (now, other) -> "now is not other"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireInstantSatisfiesWhenNotPresent() throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requireInstantSatisfies(CLAIM_NAME, (v, clock) -> true)
+  @Test(expected = UndefinedValueAssertionException.class)
+  public void testRequireInstantSatisfiesWhenNotPresent() {
+    BiPredicateAssertions.builder()
+        .requireInstantSatisfies(CLAIM_NAME,
+            (t, clock) -> true,
+            (t, clock) -> new InstantAssertionException(
+                Instant.EPOCH, t, (now, other) -> "now is not other"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
   @Test
@@ -604,9 +714,11 @@ public class BiPredicateAssertionsTest {
 
     final MockContext context = new MockContext(clock, publicKeyInfo);
     claims.put(Claims.ISS, ISSUER);
-    assertThat(BiPredicateAssertions.builder()
+
+    BiPredicateAssertions.builder()
         .requireCertificateSubjectMatchesIssuer()
-        .build().test(claims, context), is(true));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
@@ -628,12 +740,14 @@ public class BiPredicateAssertionsTest {
 
     final MockContext context = new MockContext(clock, publicKeyInfo);
     claims.put(Claims.ISS, ISSUER);
-    assertThat(BiPredicateAssertions.builder()
+
+    BiPredicateAssertions.builder()
         .requireCertificateSubjectMatchesIssuer()
-        .build().test(claims, context), is(true));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
-  @Test
+  @Test(expected = CertificateSubjectNameAssertionException.class)
   public void testRequireSubjectNameMatchesIssuerWhenSubjectNameDoesNotMatch()
       throws Exception {
 
@@ -647,9 +761,10 @@ public class BiPredicateAssertionsTest {
         .build();
 
     final MockContext context = new MockContext(clock, publicKeyInfo);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireCertificateSubjectMatches(ISSUER)
-        .build().test(claims, context), is(false));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
@@ -665,9 +780,10 @@ public class BiPredicateAssertionsTest {
         .build();
 
     final MockContext context = new MockContext(clock, publicKeyInfo);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireCertificateSubjectMatches(ISSUER)
-        .build().test(claims, context), is(true));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
@@ -688,12 +804,13 @@ public class BiPredicateAssertionsTest {
         .build();
 
     final MockContext context = new MockContext(clock, publicKeyInfo);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireCertificateSubjectMatches(ISSUER)
-        .build().test(claims, context), is(true));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
-  @Test
+  @Test(expected = CertificateSubjectNameAssertionException.class)
   public void testRequireSubjectNameMatchesWhenSubjectNameDoesNotMatch()
       throws Exception {
 
@@ -707,47 +824,50 @@ public class BiPredicateAssertionsTest {
         .build();
 
     final MockContext context = new MockContext(clock, publicKeyInfo);
-    assertThat(BiPredicateAssertions.builder()
+    BiPredicateAssertions.builder()
         .requireCertificateSubjectMatches(ISSUER)
-        .build().test(claims, context), is(false));
+        .build()
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequireClaimAndPublicKeyInfoSatisfiesWhenSatisfied()
-      throws Exception {
+  public void testRequireClaimAndPublicKeyInfoSatisfiesWhenSatisfied() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requirePublicKeyInfoSatisfies(CLAIM_NAME, (v, publicKeyInfo) -> true)
+   BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies(CLAIM_NAME, (v, publicKeyInfo) -> true,
+            (v, publicKeyInfo) -> new JWTAssertionFailedException("not satisfied"))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequireClaimAndPublicKeyInfoSatisfiesWhenNotSatisfied()
-      throws Exception {
+  @Test(expected = JWTAssertionFailedException.class)
+  public void testRequireClaimAndPublicKeyInfoSatisfiesWhenNotSatisfied() {
     claims.put(CLAIM_NAME, STRING_VALUE);
-    assertThat(BiPredicateAssertions.builder()
-        .requirePublicKeyInfoSatisfies((publicKeyInfo) -> false)
+    BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies(publicKeyInfo -> false,
+            publicKeyInfo -> new JWTAssertionFailedException("not satisfied"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
   @Test
-  public void testRequirePublicKeyInfoSatisfiesWhenSatisfied()
-      throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requirePublicKeyInfoSatisfies((publicKeyInfo) -> true)
+  public void testRequirePublicKeyInfoSatisfiesWhenSatisfied() {
+    BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies(publicKeyInfo -> true,
+            publicKeyInfo -> new JWTAssertionFailedException("not satisfied"))
         .build()
-        .test(claims, context), is(true));
+        .assertSatisfied(claims, context);
   }
 
-  @Test
-  public void testRequirePublicKeyInfoSatisfiesWhenNotSatisfied()
-      throws Exception {
-    assertThat(BiPredicateAssertions.builder()
-        .requirePublicKeyInfoSatisfies(CLAIM_NAME, (v, publicKeyInfo) -> false)
+  @Test(expected = JWTAssertionFailedException.class)
+  public void testRequirePublicKeyInfoSatisfiesWhenNotSatisfied() {
+    claims.put(CLAIM_NAME, STRING_VALUE);
+    BiPredicateAssertions.builder()
+        .requirePublicKeyInfoSatisfies(CLAIM_NAME,
+            (v, publicKeyInfo) -> false,
+            (v, publicKeyInfo) -> new JWTAssertionFailedException("not satisfied"))
         .build()
-        .test(claims, context), is(false));
+        .assertSatisfied(claims, context);
   }
 
   private static class MockContext implements Assertions.Context {
@@ -755,7 +875,7 @@ public class BiPredicateAssertionsTest {
     private final Clock clock;
     private final PublicKeyInfo publicKeyInfo;
 
-    public MockContext(Clock clock, PublicKeyInfo publicKeyInfo) {
+    MockContext(Clock clock, PublicKeyInfo publicKeyInfo) {
       this.clock = clock;
       this.publicKeyInfo = publicKeyInfo;
     }

@@ -22,8 +22,12 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.function.Predicate;
+
+import org.soulwing.jwt.api.exceptions.JWTAssertionFailedException;
 
 /**
  * A specification of assertions for JWT claims.
@@ -50,9 +54,12 @@ public interface Assertions {
     /**
      * Requires a {@value Claims#JTI} claim that satisfies the given condition.
      * @param condition a predicate to evaluate as the condition
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requireIdSatisfies(Predicate<String> condition);
+    Builder requireIdSatisfies(Predicate<String> condition,
+        Function<String, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires a {@value Claims#IAT} claim whose value is after the current
@@ -66,9 +73,12 @@ public interface Assertions {
      * Requires a {@value Claims#IAT} claim whose value satisfies the specified
      * condition.
      * @param condition a bi-predicate to evaluate as the condition
+     * @param errorSupplier a bi-function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requireIssuedAtSatisfies(BiPredicate<Instant, Clock> condition);
+    Builder requireIssuedAtSatisfies(BiPredicate<Instant, Clock> condition,
+        BiFunction<Instant, Clock, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires an {@value Claims#EXP} claim whose value is after the current
@@ -83,9 +93,12 @@ public interface Assertions {
      * Requires a {@value Claims#EXP} claim whose value satisfies the specified
      * condition.
      * @param condition a bi-predicate to evaluate as the condition
+     * @param errorSupplier a bi-function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requireExpirationSatisfies(BiPredicate<Instant, Clock> condition);
+    Builder requireExpirationSatisfies(BiPredicate<Instant, Clock> condition,
+        BiFunction<Instant, Clock, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires an {@value Claims#ISS} claim whose value is equal to one of the
@@ -100,9 +113,12 @@ public interface Assertions {
      * Requires a {@value Claims#ISS} claim whose value satisfies the given
      * condition.
      * @param condition predicate that represents the required condition
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requireIssuerSatisfies(Predicate<String> condition);
+    Builder requireIssuerSatisfies(Predicate<String> condition,
+        Function<String, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires that the certificate associated with a public key that was
@@ -145,9 +161,12 @@ public interface Assertions {
      * condition. In the case where the audience claim is a single string value,
      * it is provided to the condition as a list with a single element.
      * @param condition predicate that represents the required condition
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requireAudienceSatisfies(Predicate<List> condition);
+    Builder requireAudienceSatisfies(Predicate<List> condition,
+        Function<List, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires a {@value Claims#SUB} claim whose value is equal to one of the
@@ -162,9 +181,12 @@ public interface Assertions {
      * Requires a {@value Claims#SUB} claim whose value satisfies the given
      * condition.
      * @param condition predicate that represents the required condition
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requireSubjectSatisfies(Predicate<String> condition);
+    Builder requireSubjectSatisfies(Predicate<String> condition,
+        Function<String, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires a named claim whose value is equal to one of the given values.
@@ -190,10 +212,13 @@ public interface Assertions {
      * @param name name of the claim to test
      * @param type type to which the claim value will be coerced
      * @param condition predicate that represents the required condition
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
     <T> Builder requireSatisfies(String name, Class<? extends T> type,
-        Predicate<T> condition);
+        Predicate<T> condition,
+        Function<T, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires a named claim whose numeric value, interpreted as a quantity of
@@ -202,28 +227,37 @@ public interface Assertions {
      * @param name name of the claim to test
      * @param condition bi-predicate that represents a condition to be
      *    evaluated about an instant relative to a reference clock
+     * @param errorSupplier a bi-function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
     Builder requireInstantSatisfies(String name,
-        BiPredicate<Instant, Clock> condition);
+        BiPredicate<Instant, Clock> condition,
+        BiFunction<Instant, Clock, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires that the public key info for a public key used to verify the
      * signature satisfies the given condition.
      * @param name name of a string-valued claim to pass to the condition
      * @param condition the condition to satisfy
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
     Builder requirePublicKeyInfoSatisfies(String name,
-        BiPredicate<String, PublicKeyInfo> condition);
+        BiPredicate<String, PublicKeyInfo> condition,
+        BiFunction<String, PublicKeyInfo, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Requires that the public key info for a public key used to verify the
      * signature satisfies the given condition.
      * @param condition the condition to satisfy
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
      * @return this builder
      */
-    Builder requirePublicKeyInfoSatisfies(Predicate<PublicKeyInfo> condition);
+    Builder requirePublicKeyInfoSatisfies(Predicate<PublicKeyInfo> condition,
+        Function<PublicKeyInfo, JWTAssertionFailedException> errorSupplier);
 
     /**
      * Creates a new assertions object using the configuration of this builder.
@@ -254,10 +288,11 @@ public interface Assertions {
   }
 
   /**
-   * Applies these assertions to the given claims.
+   * Asserts that these assertions are satisfied by the given claims.
    * @param claims the claims to test
    * @param context context for evaluating the assertions
    */
-  boolean test(Claims claims, Context context);
+  void assertSatisfied(Claims claims, Context context)
+      throws JWTAssertionFailedException;
 
 }

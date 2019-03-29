@@ -101,13 +101,12 @@ public class Jose4jProviderTest {
     // allow plenty of tolerance here for elapsed time
     final Duration tolerance = Duration.ofMinutes(15);
 
-    assertThat(
-        provider.assertions()
-            .requireNotExpired(tolerance)
-            .requireIssuer(ISSUER)
-            .build()
-            .test(claims, new Jose4jAssertionContext(Clock.systemUTC(), null)),
-        is(true));
+    provider.assertions()
+        .requireNotExpired(tolerance)
+        .requireIssuer(ISSUER)
+        .build()
+        .assertSatisfied(claims,
+            new Jose4jAssertionContext(Clock.systemUTC(), null));
   }
 
   @Test

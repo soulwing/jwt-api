@@ -27,6 +27,7 @@ import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.JWTProvider;
 import org.soulwing.jwt.api.JWTValidator;
 import org.soulwing.jwt.api.JoseHeader;
+import org.soulwing.jwt.api.exceptions.JWTAssertionFailedException;
 import org.soulwing.jwt.api.exceptions.JWTConfigurationException;
 import org.soulwing.jwt.api.exceptions.JWTEncryptionException;
 import org.soulwing.jwt.api.exceptions.JWTParseException;
@@ -150,15 +151,12 @@ class Jose4jValidator implements JWTValidator {
       final JWS.Result result = verify(decrypt(encoded));
       final Claims claims = provider.parse(result.getPayload());
 
-      if (!assertions.test(claims, new Jose4jAssertionContext(clock,
-          result.getPublicKeyInfo()))) {
-        // TODO -- characterize which assertion(s) failed
-        throw new JWTValidationException("one or more claims assertions failed");
-      }
+      assertions.assertSatisfied(claims,
+          new Jose4jAssertionContext(clock, result.getPublicKeyInfo()));
 
       return claims;
     }
-    catch (JWTConfigurationException ex) {
+    catch (JWTConfigurationException | JWTAssertionFailedException ex) {
       throw new JWTValidationException(ex.getMessage(), ex);
     }
   }
