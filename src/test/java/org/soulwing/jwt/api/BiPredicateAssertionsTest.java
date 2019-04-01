@@ -870,6 +870,42 @@ public class BiPredicateAssertionsTest {
         .assertSatisfied(claims, context);
   }
 
+  @Test
+  public void testRequireSatisfiesWithClaimsPredicateWhenSatisfied() {
+    BiPredicateAssertions.builder()
+        .requireSatisfies(claims -> true,
+            claims -> new JWTAssertionFailedException("not satisfied"))
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = JWTAssertionFailedException.class)
+  public void testRequireSatisfiesWithClaimsPredicateWhenNotSatisfied() {
+    BiPredicateAssertions.builder()
+        .requireSatisfies(claims -> false,
+            claims -> new JWTAssertionFailedException("not satisfied"))
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test
+  public void testRequireSatisfiesWithClaimsBiPredicateWhenSatisfied() {
+    BiPredicateAssertions.builder()
+        .requireSatisfies((claims, context) -> true,
+            (claims, context) -> new JWTAssertionFailedException("not satisfied"))
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
+  @Test(expected = JWTAssertionFailedException.class)
+  public void testRequireSatisfiesWithClaimsBiPredicateWhenNotSatisfied() {
+    BiPredicateAssertions.builder()
+        .requireSatisfies((claims, context) -> false,
+            (claims, context) -> new JWTAssertionFailedException("not satisfied"))
+        .build()
+        .assertSatisfied(claims, context);
+  }
+
   private static class MockContext implements Assertions.Context {
 
     private final Clock clock;

@@ -25,7 +25,7 @@ package org.soulwing.jwt.api.exceptions;
 public class JWTProviderNotFoundException extends RuntimeException {
 
   public JWTProviderNotFoundException() {
-    super("service loader found JWT provider found");
+    super("cannot find a provider");
   }
 
 }

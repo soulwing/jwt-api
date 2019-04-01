@@ -260,6 +260,28 @@ public interface Assertions {
         Function<PublicKeyInfo, JWTAssertionFailedException> errorSupplier);
 
     /**
+     * Requires that the set of claims satisfies the given condition.
+     * @param condition predicate that represents the condition to be
+     *    satisfied
+     * @param errorSupplier a function that supplies an exception describing
+     *    the condition that was not met
+     * @return this builder
+     */
+    Builder requireSatisfies(Predicate<Claims> condition,
+        Function<Claims, JWTAssertionFailedException> errorSupplier);
+
+    /**
+     * Requires that the set of claims satisfies the given condition.
+     * @param condition bi-predicate that represents the condition to be
+     *    satisfied
+     * @param errorSupplier a bi-function that supplies an exception describing
+     *    the condition that was not met
+     * @return this builder
+     */
+    Builder requireSatisfies(BiPredicate<Claims, Context> condition,
+        BiFunction<Claims, Context, JWTAssertionFailedException> errorSupplier);
+
+    /**
      * Creates a new assertions object using the configuration of this builder.
      * @return assertions object.
      */

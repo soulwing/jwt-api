@@ -82,11 +82,10 @@ public final class BiPredicateAssertions implements Assertions {
         (claims, context) -> description.apply(accessor.apply(claims), context)));
   }
 
-  private void addClaimAssertion(Predicate<Context> condition,
-      Function<Context, JWTAssertionFailedException> description) {
-    assertions.add(new Assertion(
-        (claims, context) -> condition.test(context),
-        (claims, context) -> description.apply(context)));
+  private void addClaimAssertion(BiPredicate<Claims, Context> condition,
+      BiFunction<Claims, Context, JWTAssertionFailedException> description) {
+
+    assertions.add(new Assertion(condition, description));
   }
 
   public static final class Builder implements Assertions.Builder {
@@ -259,8 +258,8 @@ public final class BiPredicateAssertions implements Assertions {
         Predicate<PublicKeyInfo> condition,
         Function<PublicKeyInfo, JWTAssertionFailedException> errorSupplier) {
       assertions.addClaimAssertion(
-          (context) -> condition.test(context.getPublicKeyInfo()),
-          (context) -> errorSupplier.apply(context.getPublicKeyInfo()));
+          (claims, context) -> condition.test(context.getPublicKeyInfo()),
+          (claims, context) -> errorSupplier.apply(context.getPublicKeyInfo()));
       return this;
     }
 
@@ -287,10 +286,25 @@ public final class BiPredicateAssertions implements Assertions {
     }
 
     @Override
+    public Assertions.Builder requireSatisfies(Predicate<Claims> condition,
+        Function<Claims, JWTAssertionFailedException> errorSupplier) {
+      assertions.addClaimAssertion((claims, context) -> condition.test(claims),
+          (claims, context) -> errorSupplier.apply(claims));
+      return this;
+    }
+
+    @Override
+    public Assertions.Builder requireSatisfies(
+        BiPredicate<Claims, Context> condition,
+        BiFunction<Claims, Context, JWTAssertionFailedException> errorSupplier) {
+      assertions.addClaimAssertion(condition, errorSupplier);
+      return this;
+    }
+
+    @Override
     public BiPredicateAssertions build() {
       return assertions;
     }
-
 
   }
 
