@@ -26,6 +26,7 @@ import java.util.Optional;
 import javax.naming.NamingException;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
+import javax.naming.ldap.LdapName;
 import javax.naming.ldap.Rdn;
 
 /**
@@ -35,13 +36,18 @@ import javax.naming.ldap.Rdn;
  */
 class CertificateNameMatcher {
 
+  private static final String CN = "CN";
+
   static boolean hasSubjectName(String name, X509Certificate certificate) {
     try {
-      Rdn rdn = new Rdn(certificate.getSubjectX500Principal().toString());
-      final Attributes attributes = rdn.toAttributes();
-      final String cn = Optional.ofNullable(attributes.get("CN"))
-          .map(CertificateNameMatcher::getValue).orElse(null);
-      if (name.equals(cn)) return true;
+      final LdapName dn =
+          new LdapName(certificate.getSubjectX500Principal().toString());
+      for (final Rdn rdn : dn.getRdns()) {
+        final Attributes attributes = rdn.toAttributes();
+        final String cn = Optional.ofNullable(attributes.get(CN))
+            .map(CertificateNameMatcher::getValue).orElse(null);
+        if (name.equals(cn)) return true;
+      }
 
       final Collection<List<?>> subjectAlternativeNames =
           certificate.getSubjectAlternativeNames();

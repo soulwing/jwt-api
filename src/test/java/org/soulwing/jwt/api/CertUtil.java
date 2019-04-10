@@ -102,7 +102,7 @@ public class CertUtil {
   public static X509Certificate createSelfSignedCert(String subject,
       String altName, KeyPair subjectKeyPair, Duration lifetime, boolean isCA)
           throws Exception {
-    return selfSign(new X500Name("CN=" + subject),
+    return selfSign(new X500Name("CN=" + subject + ", C=US"),
         altName != null ? new GeneralName(GeneralName.dNSName, altName) : null,
         subjectKeyPair, isCA, SIGNATURE_ALGORITHM, lifetime);
   }
