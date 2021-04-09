@@ -99,6 +99,16 @@ public class JcaX509CertificateValidatorTest {
   }
 
   @Test
+  public void testValidateWithExpiredSubjectCertificateWithExpirationCheckDisabled() throws Exception {
+    final List<X509Certificate> chain = CertUtil.createChain(3,
+        Duration.ZERO, Duration.ofDays(1));
+//    expectedException.expect(CertificateValidationException.class);
+//    expectedException.expectCause(is(instanceOf(CertificateExpiredException.class)));
+//    expectedException.expectMessage(startsWith("certificate expired"));
+    newValidator(chain.get(chain.size() - 1), false).validate(chain);
+  }
+
+  @Test
   public void testValidateWithExpiredIssuerCertificate() throws Exception {
     final List<X509Certificate> chain = CertUtil.createChain(3,
         Duration.ofDays(1), Duration.ZERO, Duration.ofDays(1));
@@ -135,13 +145,21 @@ public class JcaX509CertificateValidatorTest {
 
   private X509CertificateValidator newValidator(X509Certificate trustedCert)
       throws Exception {
+    return newValidator(trustedCert, true);
+  }
+
+
+  private X509CertificateValidator newValidator(X509Certificate trustedCert,
+      boolean checkExpiration)
+      throws Exception {
     return JcaX509CertificateValidator.builder()
-        .checkExpiration(true)
+        .checkExpiration(checkExpiration)
         .checkRevocation(false)
         .checkSubjectOnly(false)
         .trustStore(newTrustStore(trustedCert))
         .build();
   }
+
 
   private KeyStore newTrustStore(X509Certificate trustedCert) throws Exception {
     final KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());

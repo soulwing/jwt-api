@@ -151,9 +151,21 @@ public class JcaX509CertificateValidator implements X509CertificateValidator {
   @Override
   public void validate(List<X509Certificate> chain)
       throws CertificateValidationException {
-    final Date validityBasis = new Date(clock.instant().toEpochMilli());
+    Date validityBasis = validityBasis(chain);
     checkExpiration(chain, validityBasis);
     validateCertPath(chain, trustStore, validityBasis);
+  }
+
+  private Date validityBasis(List<X509Certificate> chain) {
+    Date validityBasis = new Date(clock.instant().toEpochMilli());
+    if (!checkExpiration) {
+      for (X509Certificate cert : chain) {
+        if (cert.getNotAfter().before(validityBasis)) {
+          validityBasis = cert.getNotAfter();
+        }
+      }
+    }
+    return validityBasis;
   }
 
   private void checkExpiration(List<X509Certificate> chain, Date validityBasis)
@@ -191,6 +203,15 @@ public class JcaX509CertificateValidator implements X509CertificateValidator {
 
       if (checkExpiration) {
         params.setDate(validityBasis);
+      }
+      else {
+        Date notAfter = validityBasis;
+        for (X509Certificate cert : chain) {
+          if (cert.getNotAfter().before(notAfter)) {
+            notAfter = cert.getNotAfter();
+          }
+        }
+        params.setDate(notAfter);
       }
 
       params.setRevocationEnabled(checkRevocation);
