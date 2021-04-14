@@ -48,6 +48,7 @@ import javax.json.JsonObject;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.soulwing.jwt.api.JWK;
 
 /**
  * Unit tests for {@link JcaJsonWebKey}.
@@ -57,8 +58,8 @@ import org.junit.rules.ExpectedException;
 public class JcaJsonWebKeyTest {
 
   private static final String KID = "someId";
-  private static final String USE = "someUse";
-  private static final String OP = "someOp";
+  private static final JWK.Use USE = JWK.Use.SIGNATURE;
+  private static final JWK.KeyOp OP = JWK.KeyOp.SIGN;
   private static final String ALG = "someAlg";
 
   @Rule
@@ -79,9 +80,9 @@ public class JcaJsonWebKeyTest {
 
     validateAESKey(actual, expected);
     assertThat(actual.getString("kid"), is(equalTo(KID)));
-    assertThat(actual.getString("use"), is(equalTo(USE)));
+    assertThat(actual.getString("use"), is(equalTo(USE.toString())));
     assertThat(actual.getJsonArray("key_ops"),
-        is(equalTo(Json.createArrayBuilder().add(OP).build())));
+        is(equalTo(Json.createArrayBuilder().add(OP.toString()).build())));
     assertThat(actual.getString("alg"), is(equalTo(ALG)));
   }
 

@@ -31,6 +31,45 @@ import javax.json.JsonObject;
  */
 public interface JWK {
 
+  enum Use {
+    SIGNATURE("sig"),
+    ENCRYPTION("enc");
+
+    private final String encoded;
+
+    Use(String encoded) {
+      this.encoded = encoded;
+    }
+
+    @Override
+    public String toString() {
+      return encoded;
+    }
+  }
+
+  enum KeyOp {
+    SIGN("sign"),
+    VERIFY("verify"),
+    ENCRYPT("encrypt"),
+    DECRYPT("decrypt"),
+    WRAP_KEY("wrapKey"),
+    UNWRAP_KEY("unwrapKey"),
+    DERIVE_KEY("deriveKey"),
+    DERIVE_BITS("deriveBits");
+
+    private final String encoded;
+
+    KeyOp(String encoded) {
+      this.encoded = encoded;
+    }
+
+
+    @Override
+    public String toString() {
+      return encoded;
+    }
+  }
+
   /**
    * A builder that produces JSON web keys.
    */
@@ -65,21 +104,21 @@ public interface JWK {
      * @param use use designator
      * @return this builder
      */
-    Builder use(String use);
+    Builder use(Use use);
 
     /**
      * Specifies key operations designated for this key.
      * @param ops key operation names
      * @return this builder
      */
-    Builder ops(String... ops);
+    Builder ops(KeyOp... ops);
 
     /**
      * Specifies key operations designated for this key.
      * @param ops key operation names
      * @return this builder
      */
-    Builder ops(Collection<String> ops);
+    Builder ops(Collection<KeyOp> ops);
 
     /**
      * Specifies a JCA key to be used for this web key.

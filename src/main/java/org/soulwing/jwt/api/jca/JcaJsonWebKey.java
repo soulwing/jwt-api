@@ -86,8 +86,8 @@ public class JcaJsonWebKey implements JWK {
     private String id;
     private String type;
     private String algorithm;
-    private String use;
-    private Set<String> ops = new HashSet<>();
+    private Use use;
+    private Set<KeyOp> ops = new HashSet<>();
     private Key key;
     private List<X509Certificate> certificates = new ArrayList<>();
 
@@ -110,18 +110,18 @@ public class JcaJsonWebKey implements JWK {
     }
 
     @Override
-    public JWK.Builder use(String use) {
+    public JWK.Builder use(Use use) {
       this.use = use;
       return this;
     }
 
     @Override
-    public JWK.Builder ops(String... ops) {
+    public JWK.Builder ops(KeyOp... ops) {
       return ops(Arrays.asList(ops));
     }
 
     @Override
-    public JWK.Builder ops(Collection<String> ops) {
+    public JWK.Builder ops(Collection<KeyOp> ops) {
       this.ops.addAll(ops);
       return this;
     }
@@ -203,10 +203,11 @@ public class JcaJsonWebKey implements JWK {
         builder.add("alg", algorithm);
       }
       if (use != null) {
-        builder.add("use", use);
+        builder.add("use", use.toString());
       }
       if (!ops.isEmpty()) {
         builder.add("key_ops", ops.stream()
+            .map(KeyOp::toString)
             .map(Json::createValue)
             .collect(JsonCollectors.toJsonArray()));
       }
