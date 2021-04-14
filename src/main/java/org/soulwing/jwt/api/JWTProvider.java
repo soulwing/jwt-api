@@ -81,4 +81,16 @@ public interface JWTProvider {
    */
   JWTValidator.Builder validator();
 
+  /**
+   * Gets a builder that will produce a {@link JWK} instance.
+   * @return web key builder
+   */
+  JWK.Builder webKey();
+
+  /**
+   * Gets a builder that will produce a {@link JWKS} instance.
+   * @return web key builder
+   */
+  JWKS.Builder webKeySet();
+
 }

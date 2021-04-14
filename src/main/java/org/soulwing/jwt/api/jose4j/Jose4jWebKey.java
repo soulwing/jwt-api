@@ -19,6 +19,7 @@
 package org.soulwing.jwt.api.jose4j;
 
 import java.security.Key;
+import javax.json.JsonObject;
 
 import org.jose4j.jwk.JsonWebKey;
 import org.soulwing.jwt.api.JWK;
@@ -41,4 +42,8 @@ class Jose4jWebKey implements JWK {
     return delegate.getKey();
   }
 
+  @Override
+  public JsonObject toJson() {
+    throw new UnsupportedOperationException();
+  }
 }

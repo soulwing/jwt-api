@@ -19,6 +19,10 @@
 package org.soulwing.jwt.api;
 
 import java.security.Key;
+import java.security.cert.X509Certificate;
+import java.util.Collection;
+import java.util.List;
+import javax.json.JsonObject;
 
 /**
  * A JSON Web Key.
@@ -28,10 +32,101 @@ import java.security.Key;
 public interface JWK {
 
   /**
+   * A builder that produces JSON web keys.
+   */
+  interface Builder {
+
+    /**
+     * Specifies the value for the {@code kid} property.
+     * @param id key ID
+     * @return this builder
+     */
+    Builder id(String id);
+
+    /**
+     * Specifies the value for the {@code kty} property.
+     * <p>
+     * If this value is not specified, it is inferred from the value specified
+     * to the {@link #key(Key)} builder method.
+     * @param type key type
+     * @return this builder
+     */
+    Builder type(String type);
+
+    /**
+     * Specifies the value for the {@code alg} property.
+     * @param algorithm algorithm ID
+     * @return this builder
+     */
+    Builder algorithm(String algorithm);
+
+    /**
+     * Specifies the public key {@code use} property.
+     * @param use use designator
+     * @return this builder
+     */
+    Builder use(String use);
+
+    /**
+     * Specifies key operations designated for this key.
+     * @param ops key operation names
+     * @return this builder
+     */
+    Builder ops(String... ops);
+
+    /**
+     * Specifies key operations designated for this key.
+     * @param ops key operation names
+     * @return this builder
+     */
+    Builder ops(Collection<String> ops);
+
+    /**
+     * Specifies a JCA key to be used for this web key.
+     * @return this builder
+     */
+    Builder key(Key key);
+
+    /**
+     * Specifies one or more certificates for this key.
+     * @param certificates certificates
+     * @return this builder
+     */
+    Builder certificates(X509Certificate... certificates);
+
+    /**
+     * Specifies one or more certificates for this key.
+     * @param certificates certificates
+     * @return this builder
+     */
+    Builder certificates(List<X509Certificate> certificates);
+
+    /**
+     * Builds a JWK using the configuration of this builder.
+     * @return JWK instance
+     */
+    JWK build();
+
+  }
+
+  /**
    * Gets the JCA key that corresponds to this web key.
    *
    * @return JCA key
    */
   Key getKey();
+
+  /**
+   * Gets this JWK as a JSON-P object instance.
+   * @return JSON-P representation of this JWK
+   */
+  JsonObject toJson();
+
+  /**
+   * Produces the JSON representation of this JSON web key.
+   * @return JSON string representation
+   */
+  @Override
+  String toString();
 
 }

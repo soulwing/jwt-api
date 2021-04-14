@@ -18,22 +18,22 @@
  */
 package org.soulwing.jwt.api.jose4j;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
 import org.jose4j.jwt.JwtClaims;
 import org.jose4j.jwt.consumer.InvalidJwtException;
-import org.jose4j.jwx.CompactSerializer;
 import org.soulwing.jwt.api.Assertions;
 import org.soulwing.jwt.api.BiPredicateAssertions;
 import org.soulwing.jwt.api.Claims;
 import org.soulwing.jwt.api.JWE;
+import org.soulwing.jwt.api.JWK;
+import org.soulwing.jwt.api.JWKS;
 import org.soulwing.jwt.api.JWS;
 import org.soulwing.jwt.api.JWTGenerator;
 import org.soulwing.jwt.api.JWTProvider;
 import org.soulwing.jwt.api.JWTValidator;
 import org.soulwing.jwt.api.JoseHeader;
 import org.soulwing.jwt.api.exceptions.JWTParseException;
+import org.soulwing.jwt.api.jca.JcaJsonWebKey;
+import org.soulwing.jwt.api.jca.JcaJsonWebKeySet;
 
 /**
  * A {@link JWTProvider} implemented using Jose4j.
@@ -85,6 +85,16 @@ public class Jose4jProvider implements JWTProvider {
   @Override
   public JWTValidator.Builder validator() {
     return Jose4jValidator.builder(this);
+  }
+
+  @Override
+  public JWK.Builder webKey() {
+    return JcaJsonWebKey.builder();
+  }
+
+  @Override
+  public JWKS.Builder webKeySet() {
+    return JcaJsonWebKeySet.builder();
   }
 
 }
