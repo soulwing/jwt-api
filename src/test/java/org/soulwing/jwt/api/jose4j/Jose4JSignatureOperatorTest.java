@@ -124,7 +124,7 @@ public class Jose4JSignatureOperatorTest {
   @Test
   public void testWithAlgorithmNone() throws Exception {
     expectedException.expect(JWTSignatureException.class);
-    expectedException.expectMessage("blacklisted");
+    expectedException.expectMessage("blocked");
     final JWS operation =
         Jose4jSignatureOperator.builder()
             .algorithm(JWS.Algorithm.none)
