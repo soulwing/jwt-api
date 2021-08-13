@@ -97,7 +97,7 @@
 
   <properties>
     <java.version>1.8</java.version>
-    <version.org.bouncycastle>1.61</version.org.bouncycastle>
+    <version.org.bouncycastle>1.67</version.org.bouncycastle>
   </properties>
 
 </project>
